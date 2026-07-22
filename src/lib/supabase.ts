@@ -10,7 +10,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+
+// Supabase is mid-migration from `anon` to `publishable` keys, and its own
+// snippets use both names depending on where you copy them from. Accept either
+// rather than fail silently on the wrong one.
+const key = (import.meta.env.VITE_SUPABASE_ANON_KEY ??
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) as string | undefined;
 
 /**
  * False when the env vars are absent — during local UI work, or on a
