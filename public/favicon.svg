@@ -1,10 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#f7f5f0" />
-  <text
-    x="32"
-    y="34"
-    font-size="44"
-    text-anchor="middle"
-    dominant-baseline="central"
-  >🗻</text>
+  <!-- Deep pine, a darkened relative of the #3f7d55 already used for the
+       Submitted status. The Fuji glyph is white and pale blue, so it needs a
+       dark ground to stay legible at 16px. -->
+  <rect width="64" height="64" rx="14" fill="#2f5c40" />
+  <!-- The glyph's artwork is bottom-weighted inside its em box, so the baseline
+       is raised to optically centre the mountain rather than the box. -->
+  <text x="32" y="28" font-size="50" text-anchor="middle" dominant-baseline="central">🗻</text>
 </svg>
