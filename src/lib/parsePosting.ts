@@ -6,7 +6,7 @@
  * call is a change confined to this file. Callers never learn which one ran.
  */
 
-import { INDUSTRIES, SKILL_POOL } from './schema';
+import { INDUSTRIES, RESUMES, SKILL_POOL } from './schema';
 import type { Status } from './schema';
 import { isoOf } from './derive';
 
@@ -22,6 +22,8 @@ export type Draft = {
   sourceUrl: string;
   status: Status;
   appliedDate: string;
+  /** Which resume version was sent. Not inferable from the posting — the user picks. */
+  resume: string;
   /** In-progress text in the "add a skill" input. */
   draft: string;
 };
@@ -222,6 +224,7 @@ export function parsePostingLocal(text: string, today: Date): Draft {
     sourceUrl,
     status: 'Submitted',
     appliedDate: isoOf(today),
+    resume: RESUMES[0],
     draft: '',
   };
 }

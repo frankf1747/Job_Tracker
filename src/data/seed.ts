@@ -239,6 +239,9 @@ function messy(key: string): string {
 
 export function makeSeedRows(n: number, now: Date): Application[] {
   const r = rng(20260721);
+  // Applied dates are whole days. Carrying `now`'s time-of-day would make seed
+  // rows sort ahead of rows added today, which real data never does.
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const pick = <T>(arr: T[]): T => arr[Math.floor(r() * arr.length)];
   const rows: Application[] = [];
 
@@ -294,7 +297,7 @@ export function makeSeedRows(n: number, now: Date): Application[] {
 
     // Recency-biased so the chart has a realistic ramp rather than a flat line.
     const off = Math.floor(Math.pow(r(), 1.35) * 74);
-    const d = new Date(now.getTime() - off * DAY);
+    const d = new Date(midnight.getTime() - off * DAY);
     const slug = co.n.toLowerCase().replace(/[^a-z0-9]+/g, '');
     const id = String(n - i);
 

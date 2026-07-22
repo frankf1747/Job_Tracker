@@ -44,6 +44,39 @@ table {
   border-collapse: collapse;
 }
 
+/* The two inline table editors. The prototype expressed their focus states with
+   a design-tool-only `style-focus` attribute, which has no browser equivalent —
+   these are real CSS rules doing the same thing. */
+.date-cell {
+  width: 64px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 5px 6px;
+  font-size: 11px;
+  color: #5f6a75;
+  font-family: 'Archivo', sans-serif;
+}
+.date-cell:focus {
+  border-color: #c3d0da;
+  background: #fff;
+  color: #2c3640;
+}
+
+.notes-input {
+  width: 100%;
+  min-width: 300px;
+  background: #fff;
+  border: 1px solid #e2dccd;
+  border-radius: 6px;
+  padding: 7px 11px;
+  font-size: 12px;
+  color: #37414c;
+}
+.notes-input:focus {
+  border-color: #41678a;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
