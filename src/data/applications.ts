@@ -115,10 +115,7 @@ export async function createApplication(
   return toApplication(data as unknown as Row);
 }
 
-export async function updateApplication(
-  id: string,
-  patch: Partial<Application>,
-): Promise<void> {
+export async function updateApplication(id: string, patch: Partial<Application>): Promise<void> {
   const row = toRow(patch);
   // A patch of only derived fields would otherwise issue an empty UPDATE.
   if (!Object.keys(row).length) return;

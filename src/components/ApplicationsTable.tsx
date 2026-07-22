@@ -36,7 +36,10 @@ function shortDate(iso: string): string {
 
 export type TableProps = {
   rows: Application[];
+  /** Matching the current filter. */
   total: number;
+  /** Before filtering — distinguishes an empty tracker from an empty result. */
+  unfilteredTotal: number;
   search: string;
   onSearch: (v: string) => void;
   sortKey: SortKey;
@@ -53,6 +56,8 @@ export type TableProps = {
   onNotesChange: (id: string, notes: string) => void;
   onPickSkill: (skill: string) => void;
   pageInfo: string;
+  /** ⌘ or Ctrl, for the empty-state hint. */
+  pasteKey: string;
   page: number;
   totalPages: number;
   onPrev: () => void;
@@ -411,7 +416,41 @@ export function ApplicationsTable(p: TableProps) {
 
         {p.total === 0 && (
           <div style={{ padding: 34, textAlign: 'center', color: '#9aa3ad', fontSize: 13 }}>
-            No applications match — try clearing filters.
+            {p.unfilteredTotal === 0 ? (
+              <>
+                Nothing tracked yet — copy a job posting and press{' '}
+                <kbd
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    background: '#2c3640',
+                    color: '#f7f5f0',
+                    borderRadius: 4,
+                    padding: '2px 6px',
+                    fontFamily: SANS,
+                  }}
+                >
+                  {p.pasteKey}
+                </kbd>
+                <kbd
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    background: '#2c3640',
+                    color: '#f7f5f0',
+                    borderRadius: 4,
+                    padding: '2px 6px',
+                    marginLeft: 3,
+                    fontFamily: SANS,
+                  }}
+                >
+                  V
+                </kbd>{' '}
+                anywhere on this page.
+              </>
+            ) : (
+              'No applications match — try clearing filters.'
+            )}
           </div>
         )}
       </div>

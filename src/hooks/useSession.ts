@@ -27,7 +27,9 @@ export function useSession(): SessionState {
 
     supabase.auth.getSession().then(({ data }) => {
       if (!live) return;
-      setState(data.session ? { status: 'signed-in', session: data.session } : { status: 'signed-out' });
+      setState(
+        data.session ? { status: 'signed-in', session: data.session } : { status: 'signed-out' },
+      );
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {

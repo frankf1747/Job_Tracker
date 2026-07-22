@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApplicationsTable } from './components/ApplicationsTable';
 import { Donut } from './components/Donut';
 import { FilterStrip, type Chip } from './components/FilterStrip';
@@ -9,7 +9,7 @@ import { ParsingOverlay } from './components/ParsingOverlay';
 import { Pipeline } from './components/Pipeline';
 import { ResumePanel } from './components/ResumePanel';
 import { Toast, type ToastState } from './components/Toast';
-import { ToolRail, ResumeIcon } from './components/ToolRail';
+import { ToolRail, ResumeIcon, SignOutIcon } from './components/ToolRail';
 import { ReviewModal } from './components/ReviewModal';
 import { section, sectionHeading, sectionHeadingRow } from './components/styles';
 import {
@@ -36,7 +36,9 @@ import { cityAgg, normalizeLoc, type CityAggregate } from './lib/locations';
 import { looksLikePosting, parsePosting, type Draft } from './lib/parsePosting';
 import { DAY, MONTHS, reachedFor, type Application, type Status } from './lib/schema';
 import { makeSeedRows } from './data/seed';
+import { createApplication, listApplications, updateApplication } from './data/applications';
 import { loadResumes, saveResumes, type Resume } from './data/resumeStore';
+import { supabase } from './lib/supabase';
 
 const PAGE_SIZE = 12;
 
@@ -50,8 +52,57 @@ const CYCLE_START = new Date(2026, 6, 22);
 /** How long the parsing overlay lingers, so the transition doesn't flash. */
 const PARSE_MIN_MS = 1050;
 
-export default function App() {
-  const [rows, setRows] = useState<Application[]>(() => makeSeedRows(442, new Date()));
+function FullPage({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+        background: '#f7f5f0',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <div
+      style={{
+        width: 34,
+        height: 34,
+        border: '2.5px solid #ddd6c8',
+        borderTopColor: '#41678a',
+        borderRadius: '50%',
+        animation: 'spin .8s linear infinite',
+      }}
+    />
+  );
+}
+
+/**
+ * Where the rows come from.
+ *
+ * `sample` exists so the UI can be worked on without a database. It is never
+ * reachable once Supabase is configured — and it is always labelled, because
+ * generated rows are indistinguishable from real ones at a glance.
+ */
+export type DataSource = { kind: 'sample' } | { kind: 'live'; userId: string };
+
+export default function App({ source }: { source: DataSource }) {
+  const userId = source.kind === 'live' ? source.userId : null;
+
+  const [rows, setRows] = useState<Application[]>(() =>
+    source.kind === 'sample' ? makeSeedRows(442, new Date()) : [],
+  );
+  const [load, setLoad] = useState<'loading' | 'ready' | 'error'>(
+    source.kind === 'sample' ? 'ready' : 'loading',
+  );
   const [filter, setFilter] = useState<Filter>(EMPTY_FILTER);
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('applied');
@@ -82,6 +133,43 @@ export default function App() {
   const showToast = useCallback((msg: string, kind: ToastState['kind']) => {
     setToast({ msg, kind });
   }, []);
+
+  // Optimistic writes need the pre-change row to roll back to. A ref rather
+  // than the closed-over `rows`, which is a render behind by the time a
+  // rejected request comes back.
+  const rowsRef = useRef<Application[]>(rows);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+
+  const reload = useCallback(() => {
+    if (!userId) return;
+    setLoad('loading');
+    listApplications()
+      .then((rs) => {
+        setRows(rs);
+        setLoad('ready');
+      })
+      .catch(() => setLoad('error'));
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let live = true;
+    setLoad('loading');
+    listApplications()
+      .then((rs) => {
+        if (!live) return;
+        setRows(rs);
+        setLoad('ready');
+      })
+      .catch(() => {
+        if (live) setLoad('error');
+      });
+    return () => {
+      live = false;
+    };
+  }, [userId]);
 
   useEffect(() => {
     if (!toast) return;
@@ -173,23 +261,66 @@ export default function App() {
   );
 
   // ---------- row mutations ----------
-  const updateRow = useCallback((id: string, patch: Partial<Application>) => {
-    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-  }, []);
+  /**
+   * Apply a change locally at once, then persist it. The table stays as
+   * responsive as it was in the prototype; a rejected write puts the old value
+   * back rather than leaving the screen disagreeing with the database.
+   */
+  const updateRow = useCallback(
+    (id: string, patch: Partial<Application>) => {
+      const previous = rowsRef.current.find((r) => r.id === id);
+      setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+
+      if (!userId || !previous) return;
+      updateApplication(id, patch).catch(() => {
+        setRows((rs) => rs.map((r) => (r.id === id ? previous : r)));
+        showToast(`Couldn't save that change to ${previous.company}.`, 'error');
+      });
+    },
+    [userId, showToast],
+  );
 
   const onStatusChange = useCallback(
     (id: string, status: Status) => updateRow(id, { status, reached: reachedFor(status) }),
     [updateRow],
   );
 
+  /**
+   * Notes persist on a delay, unlike the other fields.
+   *
+   * The input fires per keystroke, so writing straight through would be one
+   * request per character. A failure here also only warns — silently reverting
+   * a sentence someone is mid-way through typing would be worse than the
+   * mismatch it fixes.
+   */
+  const notesTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
   const onNotesChange = useCallback(
-    (id: string, notes: string) => updateRow(id, { notes }),
-    [updateRow],
+    (id: string, notes: string) => {
+      const previous = rowsRef.current.find((r) => r.id === id);
+      setRows((rs) => rs.map((r) => (r.id === id ? { ...r, notes } : r)));
+
+      if (!userId || !previous) return;
+      clearTimeout(notesTimers.current[id]);
+      notesTimers.current[id] = setTimeout(() => {
+        updateApplication(id, { notes }).catch(() =>
+          showToast(`Couldn't save the note on ${previous.company}.`, 'error'),
+        );
+      }, 700);
+    },
+    [userId, showToast],
   );
+
+  useEffect(() => {
+    const timers = notesTimers.current;
+    return () => {
+      for (const t of Object.values(timers)) clearTimeout(t);
+    };
+  }, []);
 
   const onDateCommit = useCallback(
     (id: string, text: string) => {
-      const row = rows.find((r) => r.id === id);
+      const row = rowsRef.current.find((r) => r.id === id);
       if (row) {
         const iso = parseMMDD(text, row.applied);
         if (iso) updateRow(id, { applied: iso, appliedTs: Date.parse(iso + 'T00:00') });
@@ -200,14 +331,19 @@ export default function App() {
         return next;
       });
     },
-    [rows, updateRow],
+    [updateRow],
   );
 
-  const addToTracker = useCallback(() => {
+  /**
+   * Saving is awaited rather than optimistic: the modal already shows a
+   * "Saving…" state, and a new application silently failing to persist is
+   * exactly the failure a tracker must not have.
+   */
+  const addToTracker = useCallback(async () => {
     if (!review) return;
     setSaving(true);
-    const row: Application = {
-      id: crypto.randomUUID(),
+
+    const draft = {
       company: review.company,
       position: review.position,
       industry: review.industry,
@@ -218,21 +354,35 @@ export default function App() {
       status: review.status,
       reached: reachedFor(review.status),
       location: review.location,
-      loc: normalizeLoc(review.location),
       applied: review.appliedDate,
-      appliedTs: Date.parse(review.appliedDate + 'T00:00'),
       resume: review.resume,
       notes: '',
       sourceUrl: review.sourceUrl,
     };
-    setRows((rs) => [row, ...rs]);
-    setReview(null);
-    setSaving(false);
-    setPage(1);
-    setSortKey('applied');
-    setSortDir('desc');
-    showToast(`Added — ${review.company} · ${review.position}`, 'success');
-  }, [review, showToast]);
+
+    try {
+      const saved = userId
+        ? await createApplication(draft, userId)
+        : {
+            ...draft,
+            id: crypto.randomUUID(),
+            loc: normalizeLoc(draft.location),
+            appliedTs: Date.parse(draft.applied + 'T00:00'),
+          };
+
+      setRows((rs) => [saved, ...rs]);
+      setReview(null);
+      setPage(1);
+      setSortKey('applied');
+      setSortDir('desc');
+      showToast(`Added — ${review.company} · ${review.position}`, 'success');
+    } catch {
+      // The modal stays open with the draft intact, so nothing is retyped.
+      showToast(`Couldn't save ${review.company}. Your draft is still here.`, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }, [review, userId, showToast]);
 
   // ---------- derived ----------
   const visible = useMemo(() => filterRows(rows, filter, search), [rows, filter, search]);
@@ -317,6 +467,39 @@ export default function App() {
   // Clicking a pin filters to that city; clicking it again clears the filter.
   const onPickCity = (c: CityAggregate) => toggleFilter('locations', c.key);
 
+  if (load === 'loading') return <FullPage>{<Spinner />}</FullPage>;
+
+  if (load === 'error') {
+    return (
+      <FullPage>
+        <div style={{ textAlign: 'center', maxWidth: 380 }}>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#2c3640' }}>
+            Couldn't load your applications
+          </h2>
+          <p style={{ margin: '8px 0 0', fontSize: 13, color: '#5f6a75', lineHeight: 1.6 }}>
+            The database didn't answer. If the project has been idle for a while it may have been
+            paused — opening the Supabase dashboard wakes it.
+          </p>
+          <button
+            onClick={reload}
+            style={{
+              marginTop: 16,
+              background: '#41678a',
+              border: '1px solid #41678a',
+              borderRadius: 7,
+              padding: '9px 20px',
+              fontSize: 13,
+              fontWeight: 600,
+              color: '#f4f2ec',
+            }}
+          >
+            Try again
+          </button>
+        </div>
+      </FullPage>
+    );
+  }
+
   return (
     <div
       style={{
@@ -397,6 +580,8 @@ export default function App() {
         <ApplicationsTable
           rows={pageRows}
           total={sorted.length}
+          unfilteredTotal={rows.length}
+          pasteKey={isMac ? '⌘' : 'Ctrl'}
           search={search}
           onSearch={(v) => {
             setSearch(v);
@@ -471,6 +656,16 @@ export default function App() {
             icon: <ResumeIcon />,
             onClick: () => setPanel('resumes'),
           },
+          ...(userId
+            ? [
+                {
+                  id: 'sign-out',
+                  label: 'Sign out',
+                  icon: <SignOutIcon />,
+                  onClick: () => void supabase?.auth.signOut(),
+                },
+              ]
+            : []),
         ]}
       />
 

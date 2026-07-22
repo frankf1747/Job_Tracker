@@ -47,12 +47,18 @@ export default function Root() {
 
   if (session.status === 'signed-out') return <SignIn />;
 
-  return (
-    <>
-      {session.status === 'unconfigured' && <SampleDataBanner />}
-      <App />
-    </>
-  );
+  // Sample mode is always labelled. Generated rows are indistinguishable from
+  // saved ones on screen, and an unlabelled 442 of them is actively misleading.
+  if (session.status === 'unconfigured') {
+    return (
+      <>
+        <SampleDataBanner />
+        <App source={{ kind: 'sample' }} />
+      </>
+    );
+  }
+
+  return <App source={{ kind: 'live', userId: session.session.user.id }} />;
 }
 
 /**
