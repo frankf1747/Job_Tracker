@@ -307,6 +307,7 @@ export function makeSeedRows(n: number, now: Date): Application[] {
       position: pos.t,
       industry: co.ind,
       level,
+      employmentType: level === 'Intern' ? 'Internship' : 'Full-time',
       salary,
       skills,
       status,

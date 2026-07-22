@@ -23,6 +23,7 @@ function app(over: Partial<Application> = {}): Application {
     position: 'Data Analyst Intern',
     industry: 'Fintech',
     level: 'Intern',
+    employmentType: 'Internship',
     salary: '',
     skills: [],
     status: 'Submitted',

@@ -59,12 +59,18 @@ export const INDUSTRIES = [
   'Healthcare',
   'Biotech / Pharma',
   'E-commerce / Retail',
+  'Consumer Goods',
   'Hardware / Semiconductors',
   'Media / Gaming',
   'Consulting',
 ];
 
 export const LEVELS = ['Intern', 'New Grad', 'Entry-level', 'Associate', 'Senior'];
+
+export const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Temporary'];
+
+/** What a posting is assumed to be when it doesn't say. */
+export const DEFAULT_EMPLOYMENT_TYPE = 'Full-time';
 
 export const RESUMES = ['Analytics v3', 'Product v2', 'SWE v1', 'Ops v2', 'General v4'];
 
@@ -126,6 +132,8 @@ export type Application = {
   position: string;
   industry: string;
   level: string;
+  /** Full-time, Contract, Internship, … See EMPLOYMENT_TYPES. */
+  employmentType: string;
   /** Free text, e.g. "$48/hr" or "$120k". */
   salary: string;
   skills: string[];

@@ -1,6 +1,6 @@
 import { useElementWidth } from '../hooks/useElementWidth';
 import { pipsToDraw } from '../lib/derive';
-import { SERIF, SERIF_JP, section, sectionHeading, sectionHeadingRow } from './styles';
+import { SANS, SERIF, SERIF_JP, section, sectionHeading, sectionHeadingRow } from './styles';
 
 const PIP_SIZE = 8;
 const PIP_GAP = 3;
@@ -8,10 +8,12 @@ const PIP_GAP = 3;
 const PIP_ROWS = 3;
 
 /**
- * One tick per elapsed day, wrapping into rows and capped at whatever fits.
+ * "Day N" plus one tick per elapsed day, wrapping into rows and capped at
+ * whatever fits.
  *
  * The cap is computed from the measured width rather than hardcoded, so the
- * strip never pushes the panel taller than the column beside it.
+ * strip never pushes the panel taller than the column beside it. The label
+ * keeps the real count readable once the ticks stop keeping up.
  */
 function PipStrip({ days }: { days: number }) {
   const [ref, width] = useElementWidth(0, 0);
@@ -19,16 +21,31 @@ function PipStrip({ days }: { days: number }) {
 
   return (
     <div
-      ref={ref}
-      style={{ display: 'flex', flexWrap: 'wrap', gap: PIP_GAP, marginTop: 'auto' }}
-      title={`${days} day${days === 1 ? '' : 's'} into the cycle`}
+      style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 'auto' }}
+      title={`Day ${days} of your search`}
     >
-      {Array.from({ length: shown }, (_, i) => (
-        <span
-          key={i}
-          style={{ width: PIP_SIZE, height: PIP_SIZE, borderRadius: 2, background: '#b6cadb' }}
-        />
-      ))}
+      <span
+        style={{
+          fontFamily: SANS,
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '.06em',
+          color: '#5f6a75',
+          whiteSpace: 'nowrap',
+          flex: 'none',
+          paddingTop: 1,
+        }}
+      >
+        Day {days}
+      </span>
+      <div ref={ref} style={{ display: 'flex', flexWrap: 'wrap', gap: PIP_GAP, flex: 1 }}>
+        {Array.from({ length: shown }, (_, i) => (
+          <span
+            key={i}
+            style={{ width: PIP_SIZE, height: PIP_SIZE, borderRadius: 2, background: '#b6cadb' }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -47,8 +64,8 @@ export type OverviewProps = {
   cdDays: number;
   cdDaysExtra: number;
   cdTargetLabel: string;
-  /** One tick per day since the cycle began. */
-  pipCount: number;
+  /** Which day of the search this is; also the number of ticks. */
+  dayNumber: number;
 };
 
 export function Overview({
@@ -58,7 +75,7 @@ export function Overview({
   cdDays,
   cdDaysExtra,
   cdTargetLabel,
-  pipCount,
+  dayNumber,
 }: OverviewProps) {
   return (
     <section style={section}>
@@ -172,7 +189,7 @@ export function Overview({
             </span>
           </div>
 
-          <PipStrip days={pipCount} />
+          <PipStrip days={dayNumber} />
         </div>
       </div>
     </section>

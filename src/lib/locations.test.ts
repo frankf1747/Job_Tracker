@@ -64,6 +64,7 @@ function app(location: string, status: Application['status'] = 'Submitted'): App
     position: 'Analyst',
     industry: 'Fintech',
     level: 'Intern',
+    employmentType: 'Internship',
     salary: '',
     skills: [],
     status,

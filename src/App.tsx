@@ -7,7 +7,9 @@ import { LocationMap, type MapScope } from './components/LocationMap';
 import { Overview } from './components/Overview';
 import { ParsingOverlay } from './components/ParsingOverlay';
 import { Pipeline } from './components/Pipeline';
+import { ResumePanel } from './components/ResumePanel';
 import { Toast, type ToastState } from './components/Toast';
+import { ToolRail, ResumeIcon } from './components/ToolRail';
 import { ReviewModal } from './components/ReviewModal';
 import { section, sectionHeading, sectionHeadingRow } from './components/styles';
 import {
@@ -34,6 +36,7 @@ import { cityAgg, normalizeLoc, type CityAggregate } from './lib/locations';
 import { looksLikePosting, parsePosting, type Draft } from './lib/parsePosting';
 import { DAY, MONTHS, reachedFor, type Application, type Status } from './lib/schema';
 import { makeSeedRows } from './data/seed';
+import { loadResumes, saveResumes, type Resume } from './data/resumeStore';
 
 const PAGE_SIZE = 12;
 
@@ -62,6 +65,13 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [now, setNow] = useState(() => new Date());
+  const [resumes, setResumes] = useState<Resume[]>(() => loadResumes());
+  const [panel, setPanel] = useState<'resumes' | null>(null);
+
+  const updateResumes = useCallback((next: Resume[]) => {
+    setResumes(next);
+    saveResumes(next);
+  }, []);
 
   // The countdown and "this week" figures go stale if the tab is left open.
   useEffect(() => {
@@ -202,6 +212,7 @@ export default function App() {
       position: review.position,
       industry: review.industry,
       level: review.level,
+      employmentType: review.employmentType,
       salary: review.salary,
       skills: review.skills.slice(),
       status: review.status,
@@ -372,7 +383,7 @@ export default function App() {
           cdDays={cdDays}
           cdDaysExtra={cdDays % 7}
           cdTargetLabel={`${MONTHS[target.getMonth()]} ${target.getDate()}, ${target.getFullYear()}`}
-          pipCount={pipCount}
+          dayNumber={pipCount}
         />
 
         <Pipeline
@@ -452,11 +463,27 @@ export default function App() {
         </section>
       </div>
 
+      <ToolRail
+        tools={[
+          {
+            id: 'resumes',
+            label: 'Resumes',
+            icon: <ResumeIcon />,
+            onClick: () => setPanel('resumes'),
+          },
+        ]}
+      />
+
+      {panel === 'resumes' && (
+        <ResumePanel resumes={resumes} onChange={updateResumes} onClose={() => setPanel(null)} />
+      )}
+
       {parsing && <ParsingOverlay />}
 
       {review && (
         <ReviewModal
           review={review}
+          resumes={resumes.map((r) => r.label)}
           saving={saving}
           onPatch={(patch) => setReview((r) => (r ? { ...r, ...patch } : r))}
           onAddSkill={() =>

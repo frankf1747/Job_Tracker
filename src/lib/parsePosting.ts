@@ -4,9 +4,13 @@
  * This is the swap seam for the planned Claude-backed parser: the signature is
  * already async, so replacing the regex body with a `fetch('/api/parse-posting')`
  * call is a change confined to this file. Callers never learn which one ran.
+ *
+ * The guiding rule is that a wrong guess is worse than no guess: everything here
+ * is shown in the review modal before it is saved, but a confident-looking wrong
+ * value gets accepted, whereas a blank one gets filled in.
  */
 
-import { INDUSTRIES, RESUMES, SKILL_POOL } from './schema';
+import { DEFAULT_EMPLOYMENT_TYPE, INDUSTRIES, RESUMES, SKILL_POOL } from './schema';
 import type { Status } from './schema';
 import { isoOf } from './derive';
 
@@ -18,6 +22,7 @@ export type Draft = {
   skills: string[];
   industry: string;
   level: string;
+  employmentType: string;
   salary: string;
   sourceUrl: string;
   status: Status;
@@ -29,8 +34,20 @@ export type Draft = {
 };
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const wordRe = (s: string) => new RegExp('\\b' + escapeRe(s) + '\\b', 'i');
+const clean = (s: string) =>
+  s
+    .trim()
+    .replace(/\s{2,}/g, ' ')
+    .replace(/[.,;:]$/, '');
 
-/** Company names the parser recognises verbatim, before falling back to patterns. */
+/** How far into the posting the company name can plausibly appear. */
+const HEAD_LINES = 5;
+
+/**
+ * Company names recognised verbatim. Only consulted near the top of a posting —
+ * several of these are also tools that appear in requirements lists.
+ */
 const KNOWN_COMPANIES = [
   'Stripe',
   'Datadog',
@@ -96,6 +113,32 @@ const KNOWN_COMPANIES = [
   'Ada',
 ];
 
+const ROLE_RE =
+  /(intern|internship|new grad|new-grad|graduate|engineer|analyst|manager|scientist|associate|developer|coordinator|specialist|designer|architect)/i;
+
+/** Job-board furniture that is never the company or the position. */
+const BOILERPLATE =
+  /^(save|saved|apply|easy apply|about the job|about us|about the role|job purpose|job description|promoted|posted|reposted|show more|see more|did you finish|responses managed|people you can reach|hiring|be an early applicant|no longer accepting|full[-\s]?time|part[-\s]?time|contract|temporary|internship|on-?site|remote|hybrid|entry level|mid-senior|associate level|\d+ (applicant|people))/i;
+
+/** A line that is only a place, e.g. "Toronto, ON · 6 days ago". */
+const LOCATION_LINE = /^[A-Za-z.\-' ]{2,30},\s*[A-Z]{2}\b/;
+
+const INDUSTRY_TESTS: [RegExp, string][] = [
+  [/healthcare|clinic|patient|hospital|pharma/i, 'Healthcare'],
+  [/biotech|therapeut|genom|molecul|clinical trial/i, 'Biotech / Pharma'],
+  [/bank|payment|fintech|trading|lending|financ/i, 'Fintech'],
+  [/retail|commerce|marketplace|shopping/i, 'E-commerce / Retail'],
+  // Unilever-style CPG: no "retail" anywhere, but unmistakable supply-chain language.
+  [
+    /consumer goods|\bcpg\b|\bfmcg\b|supply chain|replenishment|on-?shelf|grocer|packaged goods/i,
+    'Consumer Goods',
+  ],
+  [/semiconductor|hardware|chip|silicon|device|robot/i, 'Hardware / Semiconductors'],
+  [/game|gaming|media|entertainment|studio/i, 'Media / Gaming'],
+  [/consult|advisory/i, 'Consulting'],
+  [/analytics|data platform|business intelligence/i, 'Data / Analytics'],
+];
+
 /**
  * One money amount: "$48", "$120,000", "$95k".
  *
@@ -111,16 +154,27 @@ const SALARY_RE = new RegExp(
   'i',
 );
 
-const INDUSTRY_TESTS: [RegExp, string][] = [
-  [/healthcare|clinic|patient|hospital|pharma/i, 'Healthcare'],
-  [/biotech|therapeut|genom|molecul|clinical trial/i, 'Biotech / Pharma'],
-  [/bank|payment|fintech|trading|lending|financ/i, 'Fintech'],
-  [/retail|commerce|marketplace|shopping|consumer goods/i, 'E-commerce / Retail'],
-  [/semiconductor|hardware|chip|silicon|device|robot/i, 'Hardware / Semiconductors'],
-  [/game|gaming|media|entertainment|studio/i, 'Media / Gaming'],
-  [/consult|advisory/i, 'Consulting'],
-  [/analytics|data platform|business intelligence/i, 'Data / Analytics'],
-];
+type MdLink = { label: string; url: string };
+
+/**
+ * Flatten `[label](url)` to `label`, keeping the pairs.
+ *
+ * Pasting from LinkedIn yields markdown, and the raw form breaks line-based
+ * heuristics badly: a tracking URL can push a two-word job title past any
+ * sane length limit.
+ */
+export function stripMarkdownLinks(raw: string): { text: string; links: MdLink[] } {
+  const links: MdLink[] = [];
+  const text = raw.replace(
+    /\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g,
+    (_m, label: string, url: string) => {
+      const l = label.trim();
+      if (l) links.push({ label: l, url });
+      return l;
+    },
+  );
+  return { text, links };
+}
 
 export function guessIndustry(text: string): string {
   for (const [re, ind] of INDUSTRY_TESTS) {
@@ -130,11 +184,99 @@ export function guessIndustry(text: string): string {
 }
 
 export function guessLevel(text: string): string {
-  if (/new grad|new-grad|university grad|recent grad/i.test(text)) return 'New Grad';
-  if (/\bintern|internship\b/i.test(text)) return 'Intern';
-  if (/\bsenior|sr\.?\b/i.test(text)) return 'Senior';
+  if (/\b(new[-\s]?grad|university grad|recent grad)\b/i.test(text)) return 'New Grad';
+  // Both sides need a boundary. Without the trailing one, "intern" matched
+  // "internal stakeholders" and filed full-time roles as internships.
+  if (/\b(intern|interns|internship|internships)\b/i.test(text)) return 'Intern';
+  if (/\b(senior|sr\.?)\b/i.test(text)) return 'Senior';
   if (/\bassociate\b/i.test(text)) return 'Associate';
   return 'Entry-level';
+}
+
+export function guessEmploymentType(text: string, level: string): string {
+  if (/\bpart[-\s]?time\b/i.test(text)) return 'Part-time';
+  if (/\b(contract|contractor|contract-to-hire)\b/i.test(text)) return 'Contract';
+  if (/\b(temporary|temp|seasonal)\b/i.test(text)) return 'Temporary';
+  if (/\b(internship|internships|co-?op)\b/i.test(text) || level === 'Intern') return 'Internship';
+  return DEFAULT_EMPLOYMENT_TYPE;
+}
+
+function looksLikeRole(line: string) {
+  return ROLE_RE.test(line);
+}
+
+function looksLikeLocation(line: string) {
+  return LOCATION_LINE.test(line) || /\bremote\b/i.test(line);
+}
+
+export function guessCompany(lines: string[], text: string): string {
+  // An explicit label always wins.
+  const labelled = text.match(/^\s*company\s*[:-]\s*(.{2,40})$/im);
+  if (labelled) return clean(labelled[1]);
+
+  // A name we recognise, but only near the top. Scanning the whole document is
+  // what made "proficiency in Power BI, Databricks" outrank the real employer.
+  const head = lines.slice(0, HEAD_LINES);
+  const known = KNOWN_COMPANIES.find((n) => head.some((l) => wordRe(n).test(l)));
+  if (known) return known;
+
+  // Otherwise the first line up top that reads like a name rather than a title,
+  // a place, or job-board furniture.
+  for (const l of head) {
+    if (looksLikeRole(l) || looksLikeLocation(l) || BOILERPLATE.test(l)) continue;
+    if (l.length < 2 || l.length > 40) continue;
+    return clean(l);
+  }
+
+  // "... Intern at Hooli Systems". Capitalised words only, and spaces rather
+  // than \s, so it stops at a sentence break or a line end instead of
+  // swallowing the start of the next paragraph.
+  const at = text.match(/\bat[ \t]+([A-Z][A-Za-z0-9&'-]*(?:[ \t]+[A-Z][A-Za-z0-9&'-]*){0,3})/);
+  if (at) return clean(at[1]);
+
+  // Deliberately no document-wide fallback: an editable placeholder beats
+  // confidently naming a tool from the requirements list.
+  return '';
+}
+
+export function guessPosition(lines: string[], text: string): string {
+  const line = lines.find((l) => looksLikeRole(l) && l.length <= 72 && !BOILERPLATE.test(l));
+  if (line) return clean(line);
+
+  // Anchored to a whole line. Unanchored, this matched "a critical role in
+  // driving collaborative planning…" and used that as the job title.
+  const labelled = text.match(/^\s*(?:position|role|job title|title)\s*[:-]\s*(.{3,72})$/im);
+  if (labelled) return clean(labelled[1]);
+
+  return '';
+}
+
+/** Prefer a link to the posting itself over a company page or a search result. */
+function scoreUrl(url: string): number {
+  let score = 0;
+  if (
+    /\/jobs?\/view\/|\/job\/|\/careers?\/|greenhouse\.io|lever\.co|myworkdayjobs|ashbyhq|smartrecruiters/i.test(
+      url,
+    )
+  ) {
+    score += 3;
+  }
+  if (/\/company\/|\/search|search-results|\/safety\/go|\/preload\/|\/jobs-tracker/i.test(url)) {
+    score -= 3;
+  }
+  return score;
+}
+
+export function pickSourceUrl(links: MdLink[], position: string, text: string): string {
+  // The link wrapping the job title is the posting, by construction.
+  const onTitle = links.find((l) => l.label === position);
+  if (onTitle) return onTitle.url;
+
+  const bare = text.match(/https?:\/\/[^\s)"']+/g) ?? [];
+  const all = [...links.map((l) => l.url), ...bare];
+  if (!all.length) return '';
+
+  return all.reduce((best, u) => (scoreUrl(u) > scoreUrl(best) ? u : best));
 }
 
 /** Whether a paste is substantial enough to be worth parsing at all. */
@@ -147,41 +289,21 @@ export function looksLikePosting(text: string): boolean {
  * Regex extraction. Deliberately permissive: anything it gets wrong is visible
  * and editable in the review modal before the row is saved.
  */
-export function parsePostingLocal(text: string, today: Date): Draft {
+export function parsePostingLocal(raw: string, today: Date): Draft {
+  const { text, links } = stripMarkdownLinks(raw);
   const lines = text
     .split(/\n+/)
     .map((l) => l.trim())
     .filter(Boolean);
   const low = text.toLowerCase();
 
-  let company = '';
-  const known = KNOWN_COMPANIES.find((n) =>
-    new RegExp('\\b' + escapeRe(n) + '\\b', 'i').test(text),
-  );
-  if (known) company = known;
-  if (!company) {
-    const m = text.match(/\bat\s+([A-Z][A-Za-z0-9&.\-' ]{2,28})/);
-    if (m) company = m[1].trim().replace(/[.,]$/, '');
-  }
-  if (!company) {
-    const m = text.match(/company[:\s]+([A-Za-z0-9&.\-' ]{2,28})/i);
-    if (m) company = m[1].trim();
-  }
-
-  let position = '';
-  const roleRe =
-    /(intern|internship|new grad|new-grad|graduate|engineer|analyst|manager|scientist|associate|developer|coordinator|specialist)/i;
-  const pline = lines.find((l) => roleRe.test(l) && l.length <= 72);
-  if (pline) position = pline.replace(/\s{2,}/g, ' ').trim();
-  if (!position) {
-    const m = text.match(/(position|role|job title|title)[:\s]+([^\n]{3,72})/i);
-    if (m) position = m[2].trim();
-  }
+  const company = guessCompany(lines, text);
+  const position = guessPosition(lines, text);
 
   let location = '';
   // A line that is *only* "City, ST" is the strongest signal.
   for (const l of lines) {
-    const mm = l.trim().match(/^([A-Za-z.\-' ]{2,30},\s*[A-Z]{2})$/);
+    const mm = l.match(/^([A-Za-z.\-' ]{2,30},\s*[A-Z]{2})\b/);
     if (mm) {
       location = mm[1].trim();
       break;
@@ -209,9 +331,7 @@ export function parsePostingLocal(text: string, today: Date): Draft {
   const sm = text.match(SALARY_RE);
   if (sm) salary = sm[0].replace(/\s+/g, ' ').trim();
 
-  let sourceUrl = '';
-  const um = text.match(/https?:\/\/[^\s)"']+/);
-  if (um) sourceUrl = um[0];
+  const level = guessLevel(text);
 
   return {
     company: company || 'Company (edit me)',
@@ -219,9 +339,10 @@ export function parsePostingLocal(text: string, today: Date): Draft {
     location,
     skills,
     industry: guessIndustry(low),
-    level: guessLevel(text),
+    level,
+    employmentType: guessEmploymentType(text, level),
     salary,
-    sourceUrl,
+    sourceUrl: pickSourceUrl(links, position, text),
     status: 'Submitted',
     appliedDate: isoOf(today),
     resume: RESUMES[0],

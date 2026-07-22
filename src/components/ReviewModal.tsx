@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { Draft } from '../lib/parsePosting';
-import { INDUSTRIES, LEVELS, RESUMES, STATUSES } from '../lib/schema';
+import { EMPLOYMENT_TYPES, INDUSTRIES, LEVELS, STATUSES } from '../lib/schema';
 import type { Status } from '../lib/schema';
 import { SANS, field, guessInput, guessLabel, input, microLabel } from './styles';
 
@@ -13,6 +13,7 @@ import { SANS, field, guessInput, guessLabel, input, microLabel } from './styles
  */
 export function ReviewModal({
   review,
+  resumes,
   onPatch,
   onAddSkill,
   onRemoveSkill,
@@ -21,6 +22,8 @@ export function ReviewModal({
   saving,
 }: {
   review: Draft;
+  /** Labels from the user's resume list, managed in the Resumes panel. */
+  resumes: string[];
   onPatch: (patch: Partial<Draft>) => void;
   onAddSkill: () => void;
   onRemoveSkill: (index: number) => void;
@@ -202,7 +205,7 @@ export function ReviewModal({
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
             <label style={field}>
               <span style={guessLabel}>Industry · guess</span>
               <select
@@ -225,6 +228,20 @@ export function ReviewModal({
                 style={guessInput}
               >
                 {LEVELS.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label style={field}>
+              <span style={microLabel}>Type</span>
+              <select
+                value={review.employmentType}
+                onChange={(e) => onPatch({ employmentType: e.target.value })}
+                style={input}
+              >
+                {EMPLOYMENT_TYPES.map((o) => (
                   <option key={o} value={o}>
                     {o}
                   </option>
@@ -303,11 +320,16 @@ export function ReviewModal({
                 onChange={(e) => onPatch({ resume: e.target.value })}
                 style={input}
               >
-                {RESUMES.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
+                {/* A draft can name a resume that has since been renamed or
+                    deleted; keep it selectable so saving never silently
+                    reassigns it. */}
+                {(resumes.includes(review.resume) ? resumes : [review.resume, ...resumes]).map(
+                  (o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ),
+                )}
               </select>
             </label>
           </div>

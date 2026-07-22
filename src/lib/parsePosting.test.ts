@@ -1,5 +1,41 @@
 import { describe, expect, test } from 'vitest';
-import { guessIndustry, guessLevel, looksLikePosting, parsePostingLocal } from './parsePosting';
+import {
+  guessEmploymentType,
+  guessIndustry,
+  guessLevel,
+  looksLikePosting,
+  parsePostingLocal,
+  stripMarkdownLinks,
+} from './parsePosting';
+
+/**
+ * A real LinkedIn paste, in the markdown form the clipboard actually produces.
+ * Every field below was wrong before: the employer lost to a tool named in the
+ * requirements, "internal stakeholders" made it an internship, and the job title
+ * came out as a fragment of a sentence.
+ */
+const UNILEVER = `[Unilever](https://www.linkedin.com/company/unilever/life/)
+[CPFR Analyst](https://www.linkedin.com/jobs/view/4440231632/?trackingId=2SDxbv9RfRjcskahH9BqqQ%3D%3D&refId=jRPL23HCJronUcknDkOwLQ)
+Toronto, ON · 6 days ago · Over 100 people clicked apply
+Promoted by hirer · Responses managed off LinkedIn
+[On-site](https://www.linkedin.com/jobs/search-results/?currentJobId=4440231632)
+[Full-time](https://www.linkedin.com/jobs/search-results/?currentJobId=4440231632)
+[Apply](https://www.linkedin.com/safety/go/?url=https%3A%2F%2Fdsp%2Eprng%2Eco%2F1vjOnQb)
+Save
+About the job
+Job Purpose
+
+The CPFR Analyst plays a critical role in driving collaborative planning, forecasting, and
+replenishment with your assigned customer and internal stakeholders to ensure optimal product
+availability, minimize unproductive inventory, and deliver an exceptional customer experience.
+
+* Analyze customer and internal data to proactively identify risks and improve inventory efficiency.
+* Develop and maintain dashboards and workflows using Power BI, and automation tools.
+* Communicate trends through compelling data storytelling to drive incremental sales.
+* Strong analytical and technical skills with proficiency in Power BI, Databricks, and automation tools.
+* Deep understanding of end-to-end supply chain processes and demand forecasting.
+
+Pay: The pay range for this position is $71,000-$106,600.`;
 
 const TODAY = new Date(2026, 6, 21);
 const parse = (t: string) => parsePostingLocal(t, TODAY);
@@ -125,6 +161,81 @@ describe('parsePostingLocal', () => {
   });
 });
 
+describe('a real LinkedIn markdown paste', () => {
+  const d = parse(UNILEVER);
+
+  test('names the employer, not a tool from the requirements list', () => {
+    // "proficiency in Power BI, Databricks" used to outrank Unilever on line 1.
+    expect(d.company).toBe('Unilever');
+  });
+
+  test('reads the job title from its own line', () => {
+    expect(d.position).toBe('CPFR Analyst');
+  });
+
+  test('does not mistake "internal" for an internship', () => {
+    expect(d.level).toBe('Entry-level');
+    expect(d.employmentType).toBe('Full-time');
+  });
+
+  test('classifies supply-chain work as consumer goods', () => {
+    expect(d.industry).toBe('Consumer Goods');
+  });
+
+  test('links to the posting rather than the company page', () => {
+    expect(d.sourceUrl).toContain('/jobs/view/4440231632');
+  });
+
+  test('picks up location and pay range', () => {
+    expect(d.location).toBe('Toronto, ON');
+    expect(d.salary).toBe('$71,000-$106,600');
+  });
+
+  test('extracts the tools actually asked for', () => {
+    expect(d.skills).toEqual(expect.arrayContaining(['Power BI', 'Forecasting', 'Storytelling']));
+    // Databricks is named as a tool here, but it is not in the tracked skill pool.
+    expect(d.skills).not.toContain('Databricks');
+  });
+});
+
+describe('stripMarkdownLinks', () => {
+  test('keeps the label and captures the target', () => {
+    const { text, links } = stripMarkdownLinks('[Acme](https://acme.com/jobs/1) is hiring');
+    expect(text).toBe('Acme is hiring');
+    expect(links).toEqual([{ label: 'Acme', url: 'https://acme.com/jobs/1' }]);
+  });
+
+  test('leaves plain text and bare URLs alone', () => {
+    const raw = 'Analyst at Acme. See https://acme.com/careers';
+    expect(stripMarkdownLinks(raw).text).toBe(raw);
+  });
+
+  test('drops empty labels rather than recording them', () => {
+    expect(stripMarkdownLinks('[](https://x.com)').links).toEqual([]);
+  });
+});
+
+describe('guessEmploymentType', () => {
+  test('defaults to full-time, which is what most postings are', () => {
+    expect(guessEmploymentType('A great analyst role at Acme.', 'Entry-level')).toBe('Full-time');
+  });
+
+  test('reads an explicit type off the posting', () => {
+    expect(guessEmploymentType('Full-time · On-site', 'Entry-level')).toBe('Full-time');
+    expect(guessEmploymentType('This is a part-time position', 'Entry-level')).toBe('Part-time');
+    expect(guessEmploymentType('6-month contract role', 'Entry-level')).toBe('Contract');
+    expect(guessEmploymentType('Seasonal warehouse work', 'Entry-level')).toBe('Temporary');
+  });
+
+  test('an intern-level role is an internship even when unstated', () => {
+    expect(guessEmploymentType('Data Science Intern', 'Intern')).toBe('Internship');
+  });
+
+  test('an explicit part-time beats the intern inference', () => {
+    expect(guessEmploymentType('Part-time internship, 20 hrs/week', 'Intern')).toBe('Part-time');
+  });
+});
+
 describe('guessLevel', () => {
   test('picks the most specific level mentioned', () => {
     expect(guessLevel('Software Engineer, New Grad')).toBe('New Grad');
@@ -132,6 +243,14 @@ describe('guessLevel', () => {
     expect(guessLevel('Senior Product Manager')).toBe('Senior');
     expect(guessLevel('Associate Analyst')).toBe('Associate');
     expect(guessLevel('Data Analyst')).toBe('Entry-level');
+  });
+
+  test('requires whole words, not prefixes', () => {
+    // Regression: `\bintern` with no trailing boundary matched all of these.
+    expect(guessLevel('work with internal stakeholders')).toBe('Entry-level');
+    expect(guessLevel('internally facing tooling')).toBe('Entry-level');
+    expect(guessLevel('international sales support')).toBe('Entry-level');
+    expect(guessLevel('demonstrated seniority in the field')).toBe('Entry-level');
   });
 
   test('new grad wins over intern when both appear', () => {

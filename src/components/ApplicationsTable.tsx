@@ -364,6 +364,10 @@ export function ApplicationsTable(p: TableProps) {
                                 <span style={detailValue}>{r.level}</span>
                               </div>
                               <div style={detailCol}>
+                                <span style={detailLabel}>TYPE</span>
+                                <span style={detailValue}>{r.employmentType}</span>
+                              </div>
+                              <div style={detailCol}>
                                 <span style={detailLabel}>SALARY</span>
                                 <span style={detailValue}>{r.salary || '—'}</span>
                               </div>
