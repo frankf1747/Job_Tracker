@@ -1,23 +1,18 @@
-import { useState } from 'react';
 import App from './App';
-import { PasscodeLock } from './components/PasscodeLock';
 import { SignIn } from './components/SignIn';
 import { SANS } from './components/styles';
-import { isUnlocked } from './lib/lock';
 import { useSession } from './hooks/useSession';
 
 /**
- * Gate order: local passcode, then the Supabase session, then the app.
+ * One gate: the Supabase session.
  *
- * Only the second of those is a security boundary. The passcode is a screen
- * lock for a laptop someone else can reach; row-level security, keyed to the
- * session, is what stops anyone reading the data.
+ * There is deliberately no second, client-side check. A passcode compared in
+ * this bundle would protect nothing — the REST API is reachable without loading
+ * the page at all — so the passcode is an account password instead, and the
+ * session it produces is what row-level security enforces on every query.
  */
 export default function Root() {
-  const [unlocked, setUnlocked] = useState(isUnlocked);
   const session = useSession();
-
-  if (!unlocked) return <PasscodeLock onUnlock={() => setUnlocked(true)} />;
 
   if (session.status === 'loading') {
     return (
