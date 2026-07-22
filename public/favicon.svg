@@ -1,9 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Deep pine, a darkened relative of the #3f7d55 already used for the
-       Submitted status. The Fuji glyph is white and pale blue, so it needs a
-       dark ground to stay legible at 16px. -->
-  <rect width="64" height="64" rx="14" fill="#2f5c40" />
-  <!-- The glyph's artwork is bottom-weighted inside its em box, so the baseline
-       is raised to optically centre the mountain rather than the box. -->
-  <text x="32" y="28" font-size="50" text-anchor="middle" dominant-baseline="central">🗻</text>
+  <!-- #c3d6e6 is the pale blue already used for the hand-drawn highlight behind
+       the section headings. The clover glyph is mid-green, so it holds up
+       against a light ground. -->
+  <rect width="64" height="64" rx="14" fill="#c3d6e6" />
+  <text x="32" y="33" font-size="46" text-anchor="middle" dominant-baseline="central">🍀</text>
 </svg>
