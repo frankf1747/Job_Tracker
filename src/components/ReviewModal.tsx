@@ -13,6 +13,7 @@ import { SANS, field, guessInput, guessLabel, input, microLabel } from './styles
  */
 export function ReviewModal({
   review,
+  mode,
   resumes,
   onPatch,
   onAddSkill,
@@ -22,6 +23,8 @@ export function ReviewModal({
   saving,
 }: {
   review: Draft;
+  /** 'add' after a paste, 'edit' when reopened on an existing row. */
+  mode: 'add' | 'edit';
   /** Labels from the user's resume list, managed in the Resumes panel. */
   resumes: string[];
   onPatch: (patch: Partial<Draft>) => void;
@@ -31,6 +34,7 @@ export function ReviewModal({
   onSave: () => void;
   saving: boolean;
 }) {
+  const editing = mode === 'edit';
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onDiscard();
@@ -44,7 +48,7 @@ export function ReviewModal({
       onClick={onDiscard}
       role="dialog"
       aria-modal="true"
-      aria-label="Review before saving"
+      aria-label={editing ? 'Edit application' : 'Review before saving'}
       style={{
         position: 'fixed',
         inset: 0,
@@ -85,16 +89,22 @@ export function ReviewModal({
             <div
               style={{ fontFamily: SANS, fontSize: 11, letterSpacing: '.1em', color: '#41678a' }}
             >
-              ✓ EXTRACTED FROM CLIPBOARD
+              {editing ? 'EDIT APPLICATION' : '✓ EXTRACTED FROM CLIPBOARD'}
             </div>
             <h3
               style={{ margin: '6px 0 0', fontSize: 19, fontWeight: 700, letterSpacing: '-.02em' }}
             >
-              Review before saving
+              {editing ? 'Edit details' : 'Review before saving'}
             </h3>
             <p style={{ margin: '3px 0 0', fontSize: 12.5, color: '#8b939e' }}>
-              Edit anything. <span style={{ color: '#c98a3a' }}>Amber</span> fields are inferred
-              guesses — double-check them.
+              {editing ? (
+                <>Change anything and save.</>
+              ) : (
+                <>
+                  Edit anything. <span style={{ color: '#c98a3a' }}>Amber</span> fields are inferred
+                  guesses — double-check them.
+                </>
+              )}
             </p>
           </div>
           <button
@@ -373,7 +383,7 @@ export function ReviewModal({
               opacity: saving ? 0.7 : 1,
             }}
           >
-            {saving ? 'Saving…' : 'Add to tracker →'}
+            {saving ? 'Saving…' : editing ? 'Save changes' : 'Add to tracker →'}
           </button>
         </div>
       </div>

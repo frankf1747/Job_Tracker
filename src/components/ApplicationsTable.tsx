@@ -54,7 +54,7 @@ function DeleteControl({ label, onDelete }: { label: string; onDelete: () => voi
   }, [armed]);
 
   return (
-    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       {armed && (
         <button
           onClick={() => setArmed(false)}
@@ -112,6 +112,7 @@ export type TableProps = {
   onDateCommit: (id: string, v: string) => void;
   onStatusChange: (id: string, status: Status) => void;
   onNotesChange: (id: string, notes: string) => void;
+  onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onPickSkill: (skill: string) => void;
   pageInfo: string;
@@ -463,10 +464,34 @@ export function ApplicationsTable(p: TableProps) {
                               </div>
                             </div>
 
-                            <DeleteControl
-                              label={`${r.company} · ${r.position}`}
-                              onDelete={() => p.onDelete(r.id)}
-                            />
+                            <div
+                              style={{
+                                marginLeft: 'auto',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                              }}
+                            >
+                              <button
+                                onClick={() => p.onEdit(r.id)}
+                                aria-label={`Edit ${r.company} · ${r.position}`}
+                                style={{
+                                  background: 'transparent',
+                                  border: '1px solid #ddd6c8',
+                                  borderRadius: 6,
+                                  padding: '5px 13px',
+                                  fontSize: 11.5,
+                                  color: '#41678a',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <DeleteControl
+                                label={`${r.company} · ${r.position}`}
+                                onDelete={() => p.onDelete(r.id)}
+                              />
+                            </div>
                           </div>
                         </td>
                       </tr>

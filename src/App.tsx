@@ -33,7 +33,12 @@ import {
   type SortKey,
 } from './lib/derive';
 import { cityAgg, normalizeLoc, type CityAggregate } from './lib/locations';
-import { looksLikePosting, parsePosting, type Draft } from './lib/parsePosting';
+import {
+  draftFromApplication,
+  looksLikePosting,
+  parsePosting,
+  type Draft,
+} from './lib/parsePosting';
 import { DAY, MONTHS, reachedFor, type Application, type Status } from './lib/schema';
 import { makeSeedRows } from './data/seed';
 import {
@@ -118,6 +123,8 @@ export default function App({ source }: { source: DataSource }) {
   const [mapScope, setMapScope] = useState<MapScope>('all');
   const [parsing, setParsing] = useState(false);
   const [review, setReview] = useState<Draft | null>(null);
+  // The row being edited, or null when the modal is adding a new one.
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -146,6 +153,16 @@ export default function App({ source }: { source: DataSource }) {
   useEffect(() => {
     rowsRef.current = rows;
   }, [rows]);
+
+  // Read inside the paste handler for the default resume, without making the
+  // handler re-register every time the resume list changes.
+  const resumesRef = useRef<Resume[]>(resumes);
+  useEffect(() => {
+    resumesRef.current = resumes;
+  }, [resumes]);
+
+  /** The resume a new application defaults to: the user's first, if they have one. */
+  const defaultResume = useCallback(() => resumesRef.current[0]?.label ?? '', []);
 
   const reload = useCallback(() => {
     if (!userId) return;
@@ -215,7 +232,10 @@ export default function App({ source }: { source: DataSource }) {
           const wait = Math.max(0, PARSE_MIN_MS - (Date.now() - started));
           setTimeout(() => {
             setParsing(false);
-            setReview(draft);
+            // Default to a resume that actually exists in the user's list,
+            // rather than the parser's built-in constant.
+            setEditingId(null);
+            setReview({ ...draft, resume: defaultResume() || draft.resume });
           }, wait);
         })
         .catch(() => {
@@ -226,7 +246,15 @@ export default function App({ source }: { source: DataSource }) {
 
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-  }, [review, parsing, showToast]);
+  }, [review, parsing, showToast, defaultResume]);
+
+  /** Reopen the review modal on an existing row, to edit it. */
+  const startEdit = useCallback((id: string) => {
+    const row = rowsRef.current.find((r) => r.id === id);
+    if (!row) return;
+    setEditingId(id);
+    setReview(draftFromApplication(row));
+  }, []);
 
   // ---------- filtering ----------
   const toggleFilter = useCallback(
@@ -376,16 +404,25 @@ export default function App({ source }: { source: DataSource }) {
     [updateRow],
   );
 
+  const closeReview = useCallback(() => {
+    setReview(null);
+    setEditingId(null);
+  }, []);
+
   /**
-   * Saving is awaited rather than optimistic: the modal already shows a
-   * "Saving…" state, and a new application silently failing to persist is
-   * exactly the failure a tracker must not have.
+   * Commit the review modal — creating a new row, or updating the one being
+   * edited. Awaited rather than optimistic: the modal shows a "Saving…" state,
+   * and a save silently failing is exactly the failure a tracker must not have.
+   * On failure the modal stays open with the draft intact, so nothing is retyped.
    */
-  const addToTracker = useCallback(async () => {
+  const saveReview = useCallback(async () => {
     if (!review) return;
     setSaving(true);
 
-    const draft = {
+    // Everything the modal can set. Notes are intentionally excluded so editing
+    // a row never clears a note typed inline; reached follows status, matching
+    // the inline status dropdown.
+    const fields = {
       company: review.company,
       position: review.position,
       industry: review.industry,
@@ -398,33 +435,36 @@ export default function App({ source }: { source: DataSource }) {
       location: review.location,
       applied: review.appliedDate,
       resume: review.resume,
-      notes: '',
       sourceUrl: review.sourceUrl,
+    };
+    const derived = {
+      loc: normalizeLoc(fields.location),
+      appliedTs: Date.parse(fields.applied + 'T00:00'),
     };
 
     try {
-      const saved = userId
-        ? await createApplication(draft, userId)
-        : {
-            ...draft,
-            id: crypto.randomUUID(),
-            loc: normalizeLoc(draft.location),
-            appliedTs: Date.parse(draft.applied + 'T00:00'),
-          };
-
-      setRows((rs) => [saved, ...rs]);
-      setReview(null);
-      setPage(1);
-      setSortKey('applied');
-      setSortDir('desc');
-      showToast(`Added — ${review.company} · ${review.position}`, 'success');
+      if (editingId) {
+        if (userId) await updateApplication(editingId, fields);
+        setRows((rs) => rs.map((r) => (r.id === editingId ? { ...r, ...fields, ...derived } : r)));
+        closeReview();
+        showToast(`Updated — ${review.company} · ${review.position}`, 'success');
+      } else {
+        const saved = userId
+          ? await createApplication({ ...fields, notes: '' }, userId)
+          : { ...fields, notes: '', id: crypto.randomUUID(), ...derived };
+        setRows((rs) => [saved, ...rs]);
+        closeReview();
+        setPage(1);
+        setSortKey('applied');
+        setSortDir('desc');
+        showToast(`Added — ${review.company} · ${review.position}`, 'success');
+      }
     } catch {
-      // The modal stays open with the draft intact, so nothing is retyped.
       showToast(`Couldn't save ${review.company}. Your draft is still here.`, 'error');
     } finally {
       setSaving(false);
     }
-  }, [review, userId, showToast]);
+  }, [review, editingId, userId, showToast, closeReview]);
 
   // ---------- derived ----------
   const visible = useMemo(() => filterRows(rows, filter, search), [rows, filter, search]);
@@ -647,6 +687,7 @@ export default function App({ source }: { source: DataSource }) {
           onDateCommit={onDateCommit}
           onStatusChange={onStatusChange}
           onNotesChange={onNotesChange}
+          onEdit={startEdit}
           onDelete={deleteRow}
           onPickSkill={(s) => toggleFilter('skills', s)}
           pageInfo={
@@ -721,6 +762,7 @@ export default function App({ source }: { source: DataSource }) {
       {review && (
         <ReviewModal
           review={review}
+          mode={editingId ? 'edit' : 'add'}
           resumes={resumes.map((r) => r.label)}
           saving={saving}
           onPatch={(patch) => setReview((r) => (r ? { ...r, ...patch } : r))}
@@ -735,8 +777,8 @@ export default function App({ source }: { source: DataSource }) {
           onRemoveSkill={(i) =>
             setReview((r) => (r ? { ...r, skills: r.skills.filter((_, j) => j !== i) } : r))
           }
-          onDiscard={() => setReview(null)}
-          onSave={addToTracker}
+          onDiscard={closeReview}
+          onSave={saveReview}
         />
       )}
 

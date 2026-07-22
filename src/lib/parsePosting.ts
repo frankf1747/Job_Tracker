@@ -11,7 +11,7 @@
  */
 
 import { DEFAULT_EMPLOYMENT_TYPE, INDUSTRIES, RESUMES, SKILL_POOL } from './schema';
-import type { Status } from './schema';
+import type { Application, Status } from './schema';
 import { isoOf } from './derive';
 
 /** A parsed posting, pre-filled into the review modal for the user to correct. */
@@ -357,4 +357,28 @@ export function parsePostingLocal(raw: string, today: Date): Draft {
  */
 export async function parsePosting(text: string, today: Date): Promise<Draft> {
   return parsePostingLocal(text, today);
+}
+
+/**
+ * Turn an existing application back into an editable draft, so the same review
+ * modal that adds a row can also edit one. The inverse of how addToTracker
+ * reads a draft; the id and derived fields (loc, appliedTs) are left to the
+ * caller, which already has the row.
+ */
+export function draftFromApplication(app: Application): Draft {
+  return {
+    company: app.company,
+    position: app.position,
+    location: app.location,
+    skills: app.skills.slice(),
+    industry: app.industry,
+    level: app.level,
+    employmentType: app.employmentType,
+    salary: app.salary,
+    sourceUrl: app.sourceUrl,
+    status: app.status,
+    appliedDate: app.applied,
+    resume: app.resume,
+    draft: '',
+  };
 }

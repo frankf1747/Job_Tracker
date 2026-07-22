@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  draftFromApplication,
   guessEmploymentType,
   guessIndustry,
   guessLevel,
@@ -7,6 +8,8 @@ import {
   parsePostingLocal,
   stripMarkdownLinks,
 } from './parsePosting';
+import { normalizeLoc } from './locations';
+import type { Application } from './schema';
 
 /**
  * A real LinkedIn paste, in the markdown form the clipboard actually produces.
@@ -268,5 +271,59 @@ describe('guessIndustry', () => {
 
   test('defaults to Technology / SaaS when nothing matches', () => {
     expect(guessIndustry('we make software for people')).toBe('Technology / SaaS');
+  });
+});
+
+describe('draftFromApplication', () => {
+  const app: Application = {
+    id: 'abc',
+    company: 'Stripe',
+    position: 'Data Analyst',
+    industry: 'Fintech',
+    level: 'Entry-level',
+    employmentType: 'Full-time',
+    salary: '$120k',
+    skills: ['SQL', 'Python'],
+    status: 'Interview',
+    reached: 2,
+    location: 'San Francisco, CA',
+    loc: normalizeLoc('San Francisco, CA'),
+    applied: '2026-07-10',
+    appliedTs: Date.parse('2026-07-10T00:00'),
+    resume: 'Analytics v3',
+    notes: 'referral',
+    sourceUrl: 'https://stripe.com/jobs/1',
+  };
+
+  test('round-trips the editable fields', () => {
+    const d = draftFromApplication(app);
+    expect(d).toMatchObject({
+      company: 'Stripe',
+      position: 'Data Analyst',
+      location: 'San Francisco, CA',
+      industry: 'Fintech',
+      level: 'Entry-level',
+      employmentType: 'Full-time',
+      salary: '$120k',
+      status: 'Interview',
+      appliedDate: '2026-07-10',
+      resume: 'Analytics v3',
+      sourceUrl: 'https://stripe.com/jobs/1',
+    });
+    expect(d.skills).toEqual(['SQL', 'Python']);
+    expect(d.draft).toBe('');
+  });
+
+  test('copies the skills array rather than sharing it', () => {
+    const d = draftFromApplication(app);
+    d.skills.push('Tableau');
+    expect(app.skills).toEqual(['SQL', 'Python']);
+  });
+
+  test('carries neither notes nor derived fields, which the modal does not edit', () => {
+    const d = draftFromApplication(app);
+    expect(d).not.toHaveProperty('notes');
+    expect(d).not.toHaveProperty('appliedTs');
+    expect(d).not.toHaveProperty('id');
   });
 });
