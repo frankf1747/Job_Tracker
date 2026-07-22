@@ -1,0 +1,102 @@
+/* Global styles ported verbatim from the design prototype
+   (job-application-tracker/project/Job Tracker.dc.html). */
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+}
+body {
+  background: #f7f5f0;
+  color: #2c3640;
+  font-family: 'Archivo', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 1;
+}
+a {
+  color: #41678a;
+  text-decoration: none;
+}
+a:hover {
+  color: #2c4a66;
+}
+input,
+select,
+button,
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+}
+::selection {
+  background: #d5e0ea;
+}
+button {
+  cursor: pointer;
+}
+table {
+  border-collapse: collapse;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+@keyframes blink {
+  50% {
+    opacity: 0.2;
+  }
+}
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(1100%);
+  }
+}
+@keyframes ringpulse {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
