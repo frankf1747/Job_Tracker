@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&amp;family=Source+Serif+4:ital,wght@0,400;0,600;1,400;1,600&amp;family=Noto+Serif+JP:wght@400;600&amp;family=Caveat:wght@600;700&amp;display=swap" rel="stylesheet">
+<script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js" integrity="sha384-Ukv1p/xTma6P4/2bY5KzWBw+ydSpXmhCMtyciIQVDJ1RmOxtCYNMF1uXT9T63H67" crossorigin="anonymous"></script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:#f7f5f0;color:#2c3640;font-family:'Archivo',system-ui,sans-serif;-webkit-font-smoothing:antialiased;font-feature-settings:"tnum" 1}
+a{color:#41678a;text-decoration:none}a:hover{color:#2c4a66}
+input,select,button,textarea{font-family:inherit;color:inherit}
+input:focus,select:focus,textarea:focus{outline:none}
+::selection{background:#d5e0ea}
+button{cursor:pointer}
+table{border-collapse:collapse}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes cardIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes blink{50%{opacity:.2}}
+@keyframes scanline{0%{transform:translateY(-100%)}100%{transform:translateY(1100%)}}
+@keyframes ringpulse{0%{transform:scale(.7);opacity:.55}100%{transform:scale(2.6);opacity:0}}
+</style>
+</helmet>
+
+<div style="position:relative;min-height:100vh;background:#f7f5f0;background-image:linear-gradient(rgba(44,54,64,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(44,54,64,.022) 1px,transparent 1px);background-size:44px 44px">
+<div aria-hidden="true" style="position:fixed;top:50%;left:20px;transform:translateY(-50%);z-index:30;writing-mode:vertical-rl;font-family:'Noto Serif JP','Source Serif 4',Georgia,serif;font-size:16px;font-weight:600;letter-spacing:.44em;color:rgba(46,58,72,.5)">頑張れ</div>
+<div aria-hidden="true" style="position:fixed;inset:0;z-index:40;pointer-events:none;opacity:.05;mix-blend-mode:multiply;background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22140%22 height=%22140%22%3E%3Cfilter id=%22g%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%222%22 stitchTiles=%22stitch%22/%3E%3CfeColorMatrix type=%22saturate%22 values=%220%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23g)%22/%3E%3C/svg%3E');background-size:140px 140px"></div>
+
+
+<div style="position:relative;width:100%;height:clamp(420px,30vw,590px);background-image:url('uploads/fuji_hero.jpg');background-size:cover;background-position:center 37%">
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(247,245,240,.28) 0%,rgba(247,245,240,.04) 42%,rgba(247,245,240,.55) 80%,#f7f5f0 100%)" data-comment-anchor="5aa8053d30-div"></div>
+  <svg aria-hidden="true" viewBox="0 0 1200 560" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.5" fill="none" stroke="#2c3640" stroke-width="1.5" stroke-linecap="round">
+    <path d="M1085 430 C1150 445 1175 470 1150 492 C1132 508 1120 490 1132 480" opacity=".26"></path>
+    <path d="M1050 120 C1110 108 1140 120 1138 140" opacity=".22"></path>
+  </svg>
+  
+  
+  <div style="position:relative;max-width:1360px;margin:0 auto;padding:0 34px 72px;height:100%;display:flex;align-items:flex-end;justify-content:space-between;gap:24px">
+    <div>
+      <div style="font-size:10.5px;letter-spacing:.32em;color:#4d5966;font-weight:600;margin-bottom:12px">2026 APPLICATION RECORD</div>
+      <h1 style="margin:0;font-family:'Noto Serif JP','Source Serif 4',Georgia,serif;font-size:50px;font-weight:600;letter-spacing:.08em;line-height:1;color:#26303a">応募記録</h1>
+      <div style="font-family:'Source Serif 4',Georgia,serif;font-style:italic;font-size:15px;color:#455060;margin-top:12px" data-comment-anchor="e2f668e0c2-div">Fall seven times, stand up eight.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;background:rgba(252,251,248,.78);backdrop-filter:blur(5px);border:1px solid rgba(110,120,132,.28);border-radius:999px;padding:8px 15px 8px 12px;flex:none">
+      <span style="display:inline-flex;gap:3px">
+        <kbd style="font-size:11px;font-weight:700;background:#2c3640;color:#f7f5f0;border-radius:4px;padding:3px 6px;line-height:1">{{ pasteKey }}</kbd>
+        <kbd style="font-size:11px;font-weight:700;background:#2c3640;color:#f7f5f0;border-radius:4px;padding:3px 7px;line-height:1">V</kbd>
+      </span>
+      <span style="font-size:12.5px;color:#37414c">paste anywhere to add</span>
+    </div>
+  </div>
+</div>
+<div style="position:relative;max-width:1360px;margin:0 auto;padding:0 34px 90px">
+<svg aria-hidden="true" viewBox="0 0 1360 2400" preserveAspectRatio="none" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:-1;pointer-events:none;opacity:1" fill="none" stroke="#8a9db0" stroke-width="2" stroke-linecap="round">
+  <path d="M40 360 C260 344 620 372 880 356 C1030 347 1200 366 1320 354" opacity=".4"></path>
+  <path d="M980 760 C1080 748 1180 762 1240 800 C1272 820 1252 836 1236 822" opacity=".42"></path>
+  <path d="M60 1520 C120 1502 240 1510 316 1520 C348 1524 340 1542 314 1536" opacity=".4"></path>
+  <path d="M1180 1980 C1260 1996 1300 2024 1272 2050 C1252 2068 1238 2050 1250 2038" opacity=".38"></path>
+</svg>
+
+
+
+  <!-- ============ FILTER STATUS STRIP ============ -->
+  <sc-if value="{{ hasFilter }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:11px 0 2px;animation:fadeIn .25s ease">
+      <span style="font-family:'Archivo',sans-serif;font-size:11px;letter-spacing:.1em;color:#8b939e">FILTERING</span>
+      <sc-for list="{{ activeChips }}" as="chip" hint-placeholder-count="2">
+        <button onClick="{{ chip.remove }}" style="display:inline-flex;align-items:center;gap:7px;background:#41678a;color:#f4f2ec;border:none;border-radius:999px;padding:5px 8px 5px 11px;font-size:12px;font-weight:500">
+          <span style="opacity:.6;font-family:'Archivo',sans-serif;font-size:10px">{{ chip.kind }}</span>{{ chip.label }}<span style="font-size:14px;line-height:.6;opacity:.75">×</span>
+        </button>
+      </sc-for>
+      <button onClick="{{ resetFilters }}" style="margin-left:2px;background:transparent;border:1px dashed #b6ad9c;border-radius:999px;padding:5px 12px;font-size:12px;color:#5f6a75">Reset all</button>
+      <span style="margin-left:auto;font-family:'Archivo',sans-serif;font-size:11px;color:#8b939e">{{ shownCount }} / {{ totalCount }} applications match</span>
+    </div>
+  </sc-if>
+
+  <!-- ============ 01 KPIs ============ -->
+  <section style="margin-top:46px">
+    <div style="display:flex;align-items:baseline;gap:10px;margin:0 0 14px">
+      <h2 style="margin:0;font-family:'Caveat',cursive;font-size:29px;font-weight:700;letter-spacing:.01em;color:#2c3640;line-height:.9;background:linear-gradient(transparent 62%, #c3d6e6 62%, #c3d6e6 96%, transparent 96%);padding:0 6px 2px;-webkit-box-decoration-break:clone;box-decoration-break:clone">Overview</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:0;border-top:1px solid #d8d1c2">
+      <div style="padding:20px 28px 8px 0;border-right:1px solid #e7e2d5;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;min-height:120px">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:10.5px;letter-spacing:.26em;color:#8b939e;text-transform:uppercase">Applications</span>
+          <span style="font-family:'Source Serif 4','Noto Serif JP',Georgia,serif;font-size:56px;font-weight:600;letter-spacing:-.01em;line-height:.86;color:#2c3640">{{ totalApps }}</span>
+          <span style="font-family:'Source Serif 4',Georgia,serif;font-style:italic;font-size:13px;color:#8b939e">{{ totalAppsSub }}</span>
+        </div>
+        <div style="font-size:9.5px;letter-spacing:.22em;color:#c2c8cf;text-align:right;line-height:1.7;padding-bottom:4px">2026<br>CYCLE</div>
+      </div>
+      <div style="padding:20px 0 8px 28px;display:flex;flex-direction:column;gap:10px;min-height:120px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <span style="font-size:10.5px;letter-spacing:.26em;color:#8b939e;text-transform:uppercase">Countdown</span>
+          <span style="font-family:'Source Serif 4',Georgia,serif;font-style:italic;font-size:12.5px;color:#8b939e">→ {{ cdTargetLabel }}</span>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:16px">
+          <span style="display:flex;align-items:baseline;gap:7px"><span style="font-family:'Source Serif 4','Noto Serif JP',Georgia,serif;font-size:42px;font-weight:600;line-height:.85;color:#2c3640">{{ cdWeeks }}</span><span style="font-size:12px;color:#8b939e">weeks</span></span>
+          <span style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'Source Serif 4','Noto Serif JP',Georgia,serif;font-size:22px;font-weight:600;line-height:.85;color:#4a5560">{{ cdDaysExtra }}</span><span style="font-size:11px;color:#8b939e;white-space:nowrap">days · {{ cdDays }} total</span></span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:auto" title="one tick per day since Jul 21">
+          <sc-for list="{{ weekPips }}" as="p" hint-placeholder-count="20">
+            <span style="width:8px;height:8px;border-radius:2px;background:#b6cadb"></span>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 FUNNEL + MOMENTUM ============ -->
+  <section style="margin-top:46px">
+    <div style="display:flex;align-items:baseline;gap:10px;margin:0 0 14px">
+      <h2 style="margin:0;font-family:'Caveat',cursive;font-size:29px;font-weight:700;letter-spacing:.01em;color:#2c3640;line-height:.9;background:linear-gradient(transparent 62%, #c3d6e6 62%, #c3d6e6 96%, transparent 96%);padding:0 6px 2px;-webkit-box-decoration-break:clone;box-decoration-break:clone">Pipeline &amp; Momentum</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:52px">
+
+      <!-- FUNNEL -->
+      <div style="border-top:1px solid #d8d1c2;padding:18px 0 0" data-comment-anchor="fc27d891ad-div">
+        <div style="font-family:'Archivo',sans-serif;font-size:11px;color:#8b939e;letter-spacing:.18em;margin-bottom:16px">CONVERSION FUNNEL <span style="color:#c2c8cf">— click a stage to filter</span></div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <sc-for list="{{ funnelStages }}" as="st" hint-placeholder-count="4">
+            <button onClick="{{ st.onClick }}" style="all:unset;cursor:pointer;display:block">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:5px">
+                <span style="font-size:13px;font-weight:600;color:{{ st.labelColor }}">{{ st.key }} <span style="font-family:'Archivo',sans-serif;font-size:10.5px;color:#aeb6bf;font-weight:400">{{ st.conv }}</span></span>
+                <span style="font-size:14px;font-weight:700;letter-spacing:-.02em">{{ st.count }}</span>
+              </div>
+              <div style="height:15px;background:#e9e4d8;border-radius:3px;overflow:hidden">
+                <div style="height:100%;width:{{ st.width }}%;background:{{ st.fill }};border-radius:3px;transition:width .5s cubic-bezier(.2,.7,.2,1),background .2s"></div>
+              </div>
+            </button>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:28px;margin-top:16px;padding-top:13px;border-top:1px dashed #ddd6c8">
+          <sc-for list="{{ exits }}" as="ex" hint-placeholder-count="2">
+            <button onClick="{{ ex.onClick }}" style="all:unset;cursor:pointer;display:inline-flex;align-items:baseline;gap:7px;text-decoration:{{ ex.deco }};text-underline-offset:4px">
+              <span style="font-size:12px;color:{{ ex.fg }}">{{ ex.key }}</span>
+              <span style="font-family:'Source Serif 4',Georgia,serif;font-size:16px;font-weight:600;color:{{ ex.fg }}">{{ ex.count }}</span>
+              <span style="font-size:11px;color:{{ ex.fg }};opacity:.7">{{ ex.pct }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- MOMENTUM -->
+      <div style="border-top:1px solid #d8d1c2;padding:18px 0 0;display:flex;flex-direction:column">
+        <div style="font-family:'Archivo',sans-serif;font-size:11px;color:#8b939e;letter-spacing:.18em;margin-bottom:12px">WEEKLY MOMENTUM</div>
+        <div style="display:flex;align-items:baseline;gap:10px">
+          <span style="font-family:'Source Serif 4','Noto Serif JP',Georgia,serif;font-size:42px;font-weight:600;letter-spacing:-.01em;line-height:.9;color:#2c3640">{{ thisWeek }}</span>
+          <span style="font-size:12px;color:#8b939e">apps this week</span>
+        </div>
+        <div style="font-size:12.5px;font-weight:500;color:{{ deltaColor }};margin-top:6px">{{ deltaLabel }}</div>
+        <div style="display:flex;align-items:flex-end;gap:5px;height:66px;margin-top:auto;padding-top:16px">
+          <sc-for list="{{ momentum }}" as="wk" hint-placeholder-count="8">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end">
+              <div style="width:100%;height:{{ wk.h }}%;min-height:3px;background:{{ wk.fill }};border-radius:2px 2px 0 0;transition:height .5s cubic-bezier(.2,.7,.2,1)"></div>
+              <span style="font-size:8.5px;color:#9aa3ad">{{ wk.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 03 TABLE ============ -->
+  <section style="margin-top:46px">
+    <div style="display:flex;align-items:baseline;gap:10px;margin:0 0 14px">
+      <h2 style="margin:0;font-family:'Caveat',cursive;font-size:29px;font-weight:700;letter-spacing:.01em;color:#2c3640;line-height:.9;background:linear-gradient(transparent 62%, #c3d6e6 62%, #c3d6e6 96%, transparent 96%);padding:0 6px 2px;-webkit-box-decoration-break:clone;box-decoration-break:clone">Applications</h2>
+      <div style="margin-left:auto;position:relative">
+        <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:12px;color:#aeb6bf">⌕</span>
+        <input value="{{ search }}" onInput="{{ onSearch }}" placeholder="Search company, role, location…" style="width:300px;background:transparent;border:none;border-bottom:1px solid #d8d1c2;border-radius:0;padding:8px 4px 8px 26px;font-size:12.5px">
+      </div>
+    </div>
+
+    <div style="border-top:1px solid #d8d1c2;overflow:hidden">
+      <div style="overflow-x:auto">
+      <table style="width:100%;font-size:12.5px;min-width:1120px">
+        <thead>
+          <tr style="border-bottom:1px solid #d8d1c2">
+            <th style="width:34px;padding:11px 0 11px 12px"></th>
+            <th onClick="{{ sortCompany }}" style="text-align:left;padding:11px 14px;font-family:'Archivo',sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#5f6a75;cursor:pointer;white-space:nowrap">COMPANY {{ sortInd.company }}</th>
+            <th onClick="{{ sortPosition }}" style="text-align:left;padding:11px 14px;font-family:'Archivo',sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#5f6a75;cursor:pointer">POSITION {{ sortInd.position }}</th>
+            <th onClick="{{ sortLocation }}" style="text-align:left;padding:11px 14px;font-family:'Archivo',sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#5f6a75;cursor:pointer;white-space:nowrap">LOCATION {{ sortInd.location }}</th>
+            <th onClick="{{ sortApplied }}" style="text-align:left;padding:11px 14px;font-family:'Archivo',sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#5f6a75;cursor:pointer;white-space:nowrap">APPLIED {{ sortInd.applied }}</th>
+            <th onClick="{{ sortStatus }}" style="text-align:left;padding:11px 14px;font-family:'Archivo',sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#5f6a75;cursor:pointer;white-space:nowrap">STATUS {{ sortInd.status }}</th>
+            <th style="text-align:left;padding:11px 14px;font-family:'Archivo',sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#5f6a75;white-space:nowrap">RESUME</th>
+            <th style="text-align:left;padding:11px 14px;font-family:'Archivo',sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#5f6a75;min-width:320px">NOTES</th>
+          </tr>
+        </thead>
+        <tbody>
+          <sc-for list="{{ pageRows }}" as="r" hint-placeholder-count="12">
+            <tr style="border-bottom:1px solid #e7e2d5;background:{{ r.rowBg }}">
+              <td style="padding:8px 0 8px 12px;vertical-align:middle">
+                <button onClick="{{ r.toggleExpand }}" title="Skills &amp; details" style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;background:{{ r.chevBg }};border:1px solid {{ r.chevBorder }};border-radius:6px;font-size:9px;color:{{ r.chevFg }};line-height:1">{{ r.chev }}</button>
+              </td>
+              <td style="padding:10px 14px;font-weight:600;white-space:nowrap">{{ r.company }}</td>
+              <td style="padding:10px 14px;max-width:250px">
+                <sc-if value="{{ r.hasUrl }}" hint-placeholder-val="{{ true }}">
+                  <a href="{{ r.sourceUrl }}" target="_blank" rel="noopener" title="Open job posting" style="color:#41678a;font-weight:500;display:inline-flex;align-items:center;gap:4px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.position }}<span style="font-size:9px;opacity:.55;flex:none">↗</span></a>
+                </sc-if>
+                <sc-if value="{{ r.noUrl }}" hint-placeholder-val="{{ false }}">
+                  <span style="color:#37414c;display:inline-block;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.position }}</span>
+                </sc-if>
+              </td>
+              <td style="padding:10px 14px;color:#5f6a75;white-space:nowrap">{{ r.locDisplay }}</td>
+              <td style="padding:6px 8px 6px 14px;white-space:nowrap">
+                <input value="{{ r.dateValue }}" onFocus="{{ r.onAppliedFocus }}" onInput="{{ r.onAppliedInput }}" onBlur="{{ r.onAppliedCommit }}" onKeyDown="{{ r.onAppliedKey }}" title="Type e.g. 0721 → Jul 21" style="width:64px;background:transparent;border:1px solid transparent;border-radius:5px;padding:5px 6px;font-size:11px;color:#5f6a75;font-family:'Archivo',sans-serif" style-focus="border-color:#c3d0da;background:#fff;color:#2c3640"></td>
+              <td style="padding:8px 14px;white-space:nowrap">
+                <span title="Change status" style="position:relative;display:inline-flex;align-items:center;color:{{ r.badgeFg }};background:{{ r.badgeBg }};padding:{{ r.badgePad }};border-radius:999px;font-size:12.5px;cursor:pointer">
+                  <span style="font-family:'Noto Serif JP',Georgia,serif;opacity:.85">「</span><span style="font-size:12px;font-weight:500;font-family:'Source Serif 4','Noto Serif JP',Georgia,serif">{{ r.status }}</span><span style="font-family:'Noto Serif JP',Georgia,serif;opacity:.85">」</span>
+                  <select value="{{ r.status }}" onChange="{{ r.onStatusChange }}" style="position:absolute;inset:0;opacity:0;cursor:pointer;appearance:none;-webkit-appearance:none;border:none">
+                    <sc-for list="{{ statusOptions }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
+                  </select>
+                </span>
+              </td>
+              <td style="padding:10px 14px;color:#8b939e;font-family:'Archivo',sans-serif;font-size:10.5px;white-space:nowrap">{{ r.resume }}</td>
+              <td style="padding:6px 14px 6px 12px">
+                <input value="{{ r.notes }}" onInput="{{ r.onNotesInput }}" placeholder="add a note…" style="width:100%;min-width:300px;background:#fff;border:1px solid #e2dccd;border-radius:6px;padding:7px 11px;font-size:12px;color:#37414c" style-focus="border-color:#41678a">
+              </td>
+            </tr>
+            <sc-if value="{{ r.expanded }}" hint-placeholder-val="{{ false }}">
+              <tr style="border-bottom:1px solid #e7e2d5;background:#f1eee6">
+                <td></td>
+                <td colspan="7" style="padding:4px 14px 16px">
+                  <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;padding:14px 16px;background:#f7f5f0;border:1px solid #e2dccd;border-radius:8px">
+                    <div style="display:flex;flex-direction:column;gap:7px;flex:1;min-width:230px">
+                      <span style="font-family:'Archivo',sans-serif;font-size:9.5px;letter-spacing:.08em;color:#8b939e">SKILLS REQUESTED</span>
+                      <div style="display:flex;flex-wrap:wrap;gap:5px">
+                        <sc-for list="{{ r.detailSkills }}" as="t" hint-placeholder-count="4">
+                          <button onClick="{{ t.onClick }}" style="background:#ece7db;border:1px solid #ddd6c8;border-radius:999px;padding:4px 11px;font-size:11px;color:#4a5560">{{ t.name }}</button>
+                        </sc-for>
+                      </div>
+                    </div>
+                    <div style="display:flex;gap:26px;flex-wrap:wrap">
+                      <div style="display:flex;flex-direction:column;gap:4px">
+                        <span style="font-family:'Archivo',sans-serif;font-size:9.5px;letter-spacing:.08em;color:#8b939e">INDUSTRY</span>
+                        <span style="font-size:12.5px;color:#37414c">{{ r.industry }}</span>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:4px">
+                        <span style="font-family:'Archivo',sans-serif;font-size:9.5px;letter-spacing:.08em;color:#8b939e">LEVEL</span>
+                        <span style="font-size:12.5px;color:#37414c">{{ r.level }}</span>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:4px">
+                        <span style="font-family:'Archivo',sans-serif;font-size:9.5px;letter-spacing:.08em;color:#8b939e">SALARY</span>
+                        <span style="font-size:12.5px;color:#37414c">{{ r.salaryDisplay }}</span>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:4px">
+                        <span style="font-family:'Archivo',sans-serif;font-size:9.5px;letter-spacing:.08em;color:#8b939e">POSTING</span>
+                        <sc-if value="{{ r.hasUrl }}" hint-placeholder-val="{{ true }}">
+                          <a href="{{ r.sourceUrl }}" target="_blank" rel="noopener" style="font-size:12px;color:#41678a;font-family:'Archivo',sans-serif;display:inline-flex;align-items:center;gap:4px">Open posting<span style="font-size:9px;opacity:.6">↗</span></a>
+                        </sc-if>
+                        <sc-if value="{{ r.noUrl }}" hint-placeholder-val="{{ false }}">
+                          <span style="font-size:12px;color:#9aa3ad;font-family:'Archivo',sans-serif">no link saved</span>
+                        </sc-if>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </sc-if>
+          </sc-for>
+        </tbody>
+      </table>
+      </div>
+      <sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:34px;text-align:center;color:#9aa3ad;font-size:13px">No applications match — try clearing filters.</div>
+      </sc-if>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
+      <span style="font-family:'Archivo',sans-serif;font-size:11px;color:#8b939e">{{ pageInfo }}</span>
+      <div style="display:flex;gap:6px">
+        <button onClick="{{ prevPage }}" style="background:transparent;border:1px solid #d8d1c2;border-radius:3px;padding:7px 14px;font-size:12px;color:{{ prevColor }}">← Prev</button>
+        <button onClick="{{ nextPage }}" style="background:transparent;border:1px solid #d8d1c2;border-radius:3px;padding:7px 14px;font-size:12px;color:{{ nextColor }}">Next →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 BREAKDOWNS ============ -->
+  <section style="margin-top:46px">
+    <div style="display:flex;align-items:baseline;gap:10px;margin:0 0 14px">
+      <h2 style="margin:0;font-family:'Caveat',cursive;font-size:29px;font-weight:700;letter-spacing:.01em;color:#2c3640;line-height:.9;background:linear-gradient(transparent 62%, #c3d6e6 62%, #c3d6e6 96%, transparent 96%);padding:0 6px 2px;-webkit-box-decoration-break:clone;box-decoration-break:clone">Breakdowns</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+
+      <!-- SKILLS -->
+      <div style="border-top:1px solid #d8d1c2;padding:18px 4px 0">
+        <div style="font-family:'Archivo',sans-serif;font-size:11px;color:#8b939e;letter-spacing:.05em;margin-bottom:6px">BY INDUSTRY <span style="color:#c2c8cf">— share of applications</span></div>
+        <div style="display:flex;justify-content:center;margin:6px 0 14px">
+          <svg viewBox="0 0 164 164" width="150" height="150" style="display:block">
+            <sc-for list="{{ industryArcs }}" as="a" hint-placeholder-count="6">
+              <path d="{{ a.d }}" fill="{{ a.color }}" stroke="#f7f5f0" stroke-width="1.5" onClick="{{ a.onClick }}" style="cursor:pointer;opacity:{{ a.opacity }};transition:opacity .2s"></path>
+            </sc-for>
+          </svg>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <sc-for list="{{ industryArcs }}" as="a" hint-placeholder-count="6">
+            <button onClick="{{ a.onClick }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;opacity:{{ a.opacity }};transition:opacity .2s">
+              <span style="width:9px;height:9px;border-radius:2px;background:{{ a.color }};flex:none"></span>
+              <span style="font-size:12px;font-weight:500;color:{{ a.nameColor }};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+              <span style="font-family:'Archivo',sans-serif;font-size:11px;font-weight:700;color:#4a5560">{{ a.pct }}%</span>
+              <span style="font-family:'Archivo',sans-serif;font-size:10px;color:#aeb6bf;width:30px;text-align:right">{{ a.count }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- INDUSTRY -->
+      <div style="border-top:1px solid #d8d1c2;padding:18px 4px 0">
+        <div style="font-family:'Archivo',sans-serif;font-size:11px;color:#8b939e;letter-spacing:.05em;margin-bottom:6px">TOP SKILLS <span style="color:#c2c8cf">— share of mentions</span></div>
+        <div style="display:flex;justify-content:center;margin:6px 0 14px">
+          <svg viewBox="0 0 164 164" width="150" height="150" style="display:block">
+            <sc-for list="{{ skillArcs }}" as="a" hint-placeholder-count="6">
+              <path d="{{ a.d }}" fill="{{ a.color }}" stroke="#f7f5f0" stroke-width="1.5" onClick="{{ a.onClick }}" style="cursor:pointer;opacity:{{ a.opacity }};transition:opacity .2s"></path>
+            </sc-for>
+          </svg>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <sc-for list="{{ skillArcs }}" as="a" hint-placeholder-count="6">
+            <button onClick="{{ a.onClick }}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;opacity:{{ a.opacity }};transition:opacity .2s">
+              <span style="width:9px;height:9px;border-radius:2px;background:{{ a.color }};flex:none"></span>
+              <span style="font-size:12px;font-weight:500;color:{{ a.nameColor }};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+              <span style="font-family:'Archivo',sans-serif;font-size:11px;font-weight:700;color:#4a5560">{{ a.pct }}%</span>
+              <span style="font-family:'Archivo',sans-serif;font-size:10px;color:#aeb6bf;width:30px;text-align:right">{{ a.count }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- MAP -->
+      <div style="border-top:1px solid #d8d1c2;padding:18px 4px 0;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-family:'Archivo',sans-serif;font-size:11px;color:#8b939e;letter-spacing:.05em">BY LOCATION</span>
+          <div style="display:flex;background:#e9e4d8;border-radius:5px;padding:2px">
+            <button onClick="{{ setScopeAll }}" style="border:none;background:{{ scopeAllBg }};color:{{ scopeAllFg }};font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;font-family:'Archivo',sans-serif">ALL</button>
+            <button onClick="{{ setScopeUS }}" style="border:none;background:{{ scopeUSBg }};color:{{ scopeUSFg }};font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;font-family:'Archivo',sans-serif">US</button>
+            <button onClick="{{ setScopeCA }}" style="border:none;background:{{ scopeCABg }};color:{{ scopeCAFg }};font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;font-family:'Archivo',sans-serif">CA</button>
+          </div>
+        </div>
+        <div ref="{{ mapRef }}" style="flex:1;min-height:210px;display:flex;align-items:center;justify-content:center"></div>
+        <sc-if value="{{ mapError }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;color:#9aa3ad;text-align:center;padding:20px 0">Map geometry unavailable offline.</div></sc-if>
+        <sc-if value="{{ hasMapPick }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ clearMapPick }}" title="Clear" style="all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:8px 11px;background:#eef2f6;border:1px solid #d3dee7;border-radius:7px">
+            <span style="font-family:'Source Serif 4','Noto Serif JP',Georgia,serif;font-size:13.5px;color:#2c3640">{{ mapPickLabel }}</span>
+            <span style="font-size:11px;color:#9aa3ad">✕</span>
+          </button>
+        </sc-if>
+        <div style="font-family:'Archivo',sans-serif;font-size:10px;color:#9aa3ad;margin-top:8px;line-height:1.5">{{ mapCaption }}</div>
+      </div>
+
+    </div>
+  </section>
+
+</div>
+</div>
+
+<!-- ============ PARSING OVERLAY ============ -->
+<sc-if value="{{ parsing }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;background:rgba(40,48,60,.4);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:60;animation:fadeIn .2s ease">
+    <div style="background:#fbfaf7;border:1px solid #d8d1c2;border-radius:8px;padding:30px 40px;display:flex;flex-direction:column;align-items:center;gap:16px;box-shadow:0 24px 60px rgba(0,0,0,.28)">
+      <div style="position:relative;width:52px;height:52px">
+        <div style="position:absolute;inset:0;border:2.5px solid #ddd6c8;border-top-color:#41678a;border-radius:50%;animation:spin .8s linear infinite"></div>
+        <div style="position:absolute;inset:14px;border:2px solid #41678a33;border-radius:50%;animation:ringpulse 1.4s ease-out infinite"></div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:15px;font-weight:600">Reading posting…</div>
+        <div style="font-family:'Archivo',sans-serif;font-size:11px;color:#8b939e;margin-top:4px">extracting position · company · skills · location</div>
+      </div>
+      <div style="width:220px;height:34px;background:#efece3;border-radius:4px;overflow:hidden;position:relative;border:1px solid #e2dccd">
+        <div style="position:absolute;left:8px;right:8px;top:6px;height:3px;background:#ddd6c8;border-radius:2px"></div>
+        <div style="position:absolute;left:8px;width:60%;top:14px;height:3px;background:#ddd6c8;border-radius:2px"></div>
+        <div style="position:absolute;left:8px;width:75%;top:22px;height:3px;background:#ddd6c8;border-radius:2px"></div>
+        <div style="position:absolute;left:0;right:0;height:14px;background:linear-gradient(180deg,transparent,rgba(65,103,138,.18),transparent);animation:scanline 1.1s linear infinite"></div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ============ REVIEW CARD ============ -->
+<sc-if value="{{ hasReview }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ discard }}" style="position:fixed;inset:0;background:rgba(40,48,60,.4);backdrop-filter:blur(3px);display:flex;align-items:flex-start;justify-content:center;z-index:70;padding:40px 20px;overflow:auto;animation:fadeIn .2s ease">
+    <div onClick="{{ stop }}" style="background:#fbfaf7;border:1px solid #d8d1c2;border-radius:9px;width:640px;max-width:100%;box-shadow:0 30px 70px rgba(0,0,0,.32);animation:cardIn .28s cubic-bezier(.2,.8,.2,1);overflow:hidden">
+      <!-- header -->
+      <div style="padding:20px 24px 16px;border-bottom:1px solid #e2dccd;display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div style="font-family:'Archivo',sans-serif;font-size:11px;letter-spacing:.1em;color:#41678a">✓ EXTRACTED FROM CLIPBOARD</div>
+          <h3 style="margin:6px 0 0;font-size:19px;font-weight:700;letter-spacing:-.02em">Review before saving</h3>
+          <p style="margin:3px 0 0;font-size:12.5px;color:#8b939e">Edit anything. <span style="color:#c98a3a">Amber</span> fields are inferred guesses — double-check them.</p>
+        </div>
+        <button onClick="{{ discard }}" style="background:#efece3;border:1px solid #ddd6c8;border-radius:6px;width:30px;height:30px;font-size:16px;color:#5f6a75;line-height:1">×</button>
+      </div>
+
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:16px">
+        <!-- high confidence -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label style="display:flex;flex-direction:column;gap:5px">
+            <span style="font-family:'Archivo',sans-serif;font-size:10px;letter-spacing:.06em;color:#8b939e;text-transform:uppercase">Position</span>
+            <input value="{{ review.position }}" onInput="{{ onRvPosition }}" style="background:#fff;border:1.5px solid #cfc8b9;border-radius:6px;padding:9px 11px;font-size:13px;font-weight:600">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px">
+            <span style="font-family:'Archivo',sans-serif;font-size:10px;letter-spacing:.06em;color:#8b939e;text-transform:uppercase">Company</span>
+            <input value="{{ review.company }}" onInput="{{ onRvCompany }}" style="background:#fff;border:1.5px solid #cfc8b9;border-radius:6px;padding:9px 11px;font-size:13px;font-weight:600">
+          </label>
+        </div>
+
+        <!-- skills -->
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-family:'Archivo',sans-serif;font-size:10px;letter-spacing:.06em;color:#8b939e;text-transform:uppercase">Skills</span>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:#fff;border:1.5px solid #cfc8b9;border-radius:6px;padding:8px 10px;min-height:42px">
+            <sc-for list="{{ reviewSkills }}" as="s" hint-placeholder-count="4">
+              <span style="display:inline-flex;align-items:center;gap:6px;background:#e7edf3;border:1px solid #cfdce6;color:#3f6079;border-radius:4px;padding:4px 8px;font-size:12px">{{ s.name }}<button onClick="{{ s.remove }}" style="background:none;border:none;padding:0;font-size:14px;line-height:.6;color:#7f9cb2">×</button></span>
+            </sc-for>
+            <input value="{{ review.draft }}" onInput="{{ onRvDraft }}" onKeyDown="{{ onRvDraftKey }}" placeholder="add skill + Enter" style="flex:1;min-width:110px;border:none;background:transparent;font-size:12.5px;padding:2px">
+          </div>
+        </div>
+
+        <!-- inferred guesses row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label style="display:flex;flex-direction:column;gap:5px">
+            <span style="font-family:'Archivo',sans-serif;font-size:10px;letter-spacing:.06em;color:#c98a3a;text-transform:uppercase">Industry · guess</span>
+            <select value="{{ review.industry }}" onChange="{{ onRvIndustry }}" style="background:#fdf6ea;border:1.5px dashed #dcb98a;border-radius:6px;padding:9px 11px;font-size:13px;color:#7a5a24">
+              <sc-for list="{{ industryOptions }}" as="o" hint-placeholder-count="9"><option value="{{ o }}">{{ o }}</option></sc-for>
+            </select>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px">
+            <span style="font-family:'Archivo',sans-serif;font-size:10px;letter-spacing:.06em;color:#c98a3a;text-transform:uppercase">Level · guess</span>
+            <select value="{{ review.level }}" onChange="{{ onRvLevel }}" style="background:#fdf6ea;border:1.5px dashed #dcb98a;border-radius:6px;padding:9px 11px;font-size:13px;color:#7a5a24">
+              <sc-for list="{{ levelOptions }}" as="o" hint-placeholder-count="4"><option value="{{ o }}">{{ o }}</option></sc-for>
+            </select>
+          </label>
+        </div>
+
+        <!-- location / salary / url -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label style="display:flex;flex-direction:column;gap:5px">
+            <span style="font-family:'Archivo',sans-serif;font-size:10px;letter-spacing:.06em;color:#8b939e;text-transform:uppercase">Location</span>
+            <input value="{{ review.location }}" onInput="{{ onRvLocation }}" placeholder="City, ST / Remote" style="background:#fff;border:1.5px solid #cfc8b9;border-radius:6px;padding:9px 11px;font-size:13px">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px">
+            <span style="font-family:'Archivo',sans-serif;font-size:10px;letter-spacing:.06em;color:#8b939e;text-transform:uppercase">Salary range</span>
+            <input value="{{ review.salary }}" onInput="{{ onRvSalary }}" placeholder="—" style="background:#fff;border:1.5px solid #cfc8b9;border-radius:6px;padding:9px 11px;font-size:13px">
+          </label>
+        </div>
+        <label style="display:flex;flex-direction:column;gap:5px">
+          <span style="font-family:'Archivo',sans-serif;font-size:10px;letter-spacing:.06em;color:#8b939e;text-transform:uppercase">Source URL</span>
+          <input value="{{ review.sourceUrl }}" onInput="{{ onRvUrl }}" placeholder="https://…" style="background:#fff;border:1.5px solid #cfc8b9;border-radius:6px;padding:9px 11px;font-size:12.5px;color:#41678a;font-family:'Archivo',sans-serif">
+        </label>
+
+        <!-- your inputs -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding-top:14px;border-top:1px dashed #ddd6c8">
+          <label style="display:flex;flex-direction:column;gap:5px">
+            <span style="font-family:'Archivo',sans-serif;font-size:10px;letter-spacing:.06em;color:#8b939e;text-transform:uppercase">Status</span>
+            <select value="{{ review.status }}" onChange="{{ onRvStatus }}" style="background:#fff;border:1.5px solid #cfc8b9;border-radius:6px;padding:9px 11px;font-size:13px">
+              <sc-for list="{{ statusOptions }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
+            </select>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px">
+            <span style="font-family:'Archivo',sans-serif;font-size:10px;letter-spacing:.06em;color:#8b939e;text-transform:uppercase">Applied date</span>
+            <input type="date" value="{{ review.appliedDate }}" onInput="{{ onRvDate }}" style="background:#fff;border:1.5px solid #cfc8b9;border-radius:6px;padding:8px 11px;font-size:13px">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px">
+            <span style="font-family:'Archivo',sans-serif;font-size:10px;letter-spacing:.06em;color:#8b939e;text-transform:uppercase">Resume</span>
+            <select value="{{ review.resume }}" onChange="{{ onRvResume }}" style="background:#fff;border:1.5px solid #cfc8b9;border-radius:6px;padding:9px 11px;font-size:13px">
+              <sc-for list="{{ resumeOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <!-- actions -->
+      <div style="padding:16px 24px;border-top:1px solid #e2dccd;display:flex;justify-content:flex-end;gap:10px;background:#f2efe7">
+        <button onClick="{{ discard }}" style="background:transparent;border:1px solid #cfc8b9;border-radius:7px;padding:10px 18px;font-size:13px;font-weight:500;color:#5f6a75">Discard</button>
+        <button onClick="{{ addToTracker }}" style="background:#41678a;border:1px solid #41678a;border-radius:7px;padding:10px 22px;font-size:13px;font-weight:600;color:#f4f2ec">Add to tracker →</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ============ TOAST ============ -->
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:80;display:flex;align-items:center;gap:10px;background:{{ toast.bg }};border:1px solid {{ toast.border }};color:{{ toast.fg }};border-radius:8px;padding:12px 18px;box-shadow:0 14px 40px rgba(0,0,0,.22);animation:toastIn .3s cubic-bezier(.2,.8,.2,1);font-size:13px;font-weight:500;max-width:440px">
+    <span style="font-size:15px">{{ toast.icon }}</span>{{ toast.msg }}
+  </div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  mapRef = React.createRef();
+
+  state = {
+    rows: [],
+    filter: { skills: [], industries: [], statuses: [], locations: [], stage: null },
+    search: '',
+    sortKey: 'applied', sortDir: 'desc',
+    page: 1, pageSize: 12,
+    skillMetric: 'freq',
+    parsing: false,
+    review: null,
+    toast: null,
+    mapReady: false, mapScope: 'all',
+    expanded: {},
+    now: Date.now(),
+    mapPick: null,
+    dateEdit: {},
+  };
+
+  MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  NOW = new Date(2026, 6, 21);
+  DAY = 86400000;
+  PIE_TINTS = ['#35597a','#4a7396','#6d92b0','#8fadc4','#afc6d6','#c9d8e3','#dde7ee','#ecf1f5','#f4f7f9'];
+
+  STATUSES = ['Submitted','OA','Interview','Offer','Rejected','Ghosted'];
+  STATUS_META = {
+    Submitted: { bg:'transparent', fg:'#3f7d55', border:'transparent' },
+    OA:        { bg:'transparent', fg:'#a97f2b', border:'transparent' },
+    Interview: { bg:'transparent', fg:'#2f6b9e', border:'transparent' },
+    Offer:     { bg:'#c2410c', fg:'#ffffff', border:'transparent' },
+    Rejected:  { bg:'transparent', fg:'#a35242', border:'transparent' },
+    Ghosted:   { bg:'transparent', fg:'#9a9488', border:'transparent' },
+  };
+  ACCENT = '#41678a';
+  ACCENT_DIM = '#a9b3a0';
+
+  INDUSTRIES = ['Technology / SaaS','Fintech','Data / Analytics','Healthcare','Biotech / Pharma','E-commerce / Retail','Hardware / Semiconductors','Media / Gaming','Consulting'];
+  LEVELS = ['Intern','New Grad','Entry-level','Associate','Senior'];
+  RESUMES = ['Analytics v3','Product v2','SWE v1','Ops v2','General v4'];
+
+  CITY_COORDS = {
+    'San Francisco, CA':[37.77,-122.42],'New York, NY':[40.71,-74.01],'Seattle, WA':[47.61,-122.33],
+    'Austin, TX':[30.27,-97.74],'Boston, MA':[42.36,-71.06],'Chicago, IL':[41.88,-87.63],
+    'Denver, CO':[39.74,-104.99],'Atlanta, GA':[33.75,-84.39],'Nashville, TN':[36.16,-86.78],
+    'Los Angeles, CA':[34.05,-118.24],'Mountain View, CA':[37.39,-122.08],'San Jose, CA':[37.34,-121.89],
+    'Palo Alto, CA':[37.44,-122.14],'Portland, OR':[45.52,-122.68],'Minneapolis, MN':[44.98,-93.27],
+    'Dallas, TX':[32.78,-96.80],'Washington, DC':[38.90,-77.04],'Durham, NC':[35.99,-78.90],
+    'Redwood City, CA':[37.49,-122.24],'Irving, TX':[32.81,-96.95],'Philadelphia, PA':[39.95,-75.17],
+    'San Diego, CA':[32.72,-117.16],'Phoenix, AZ':[33.45,-112.07],'Salt Lake City, UT':[40.76,-111.89],'Miami, FL':[25.76,-80.19],
+    'Toronto, ON':[43.65,-79.38,'CA'],'Vancouver, BC':[49.28,-123.12,'CA'],'Montreal, QC':[45.50,-73.57,'CA'],'Ottawa, ON':[45.42,-75.70,'CA'],'Waterloo, ON':[43.46,-80.52,'CA'],'Calgary, AB':[51.05,-114.07,'CA']
+  };
+  CA_PROV = ['ON','BC','QC','AB','MB','SK','NS','NB','NL','PE'];
+  BARE_CITY = { 'austin':'Austin, TX','durham':'Durham, NC','sf':'San Francisco, CA','san francisco':'San Francisco, CA','nyc':'New York, NY','new york':'New York, NY','seattle':'Seattle, WA','denver':'Denver, CO','chicago':'Chicago, IL','boston':'Boston, MA','toronto':'Toronto, ON','vancouver':'Vancouver, BC','montreal':'Montreal, QC','ottawa':'Ottawa, ON','remote':'Remote' };
+
+  COMPANIES = [
+    {n:'Stripe',ind:'Fintech',c:'San Francisco, CA'},{n:'Datadog',ind:'Technology / SaaS',c:'New York, NY'},
+    {n:'Snowflake',ind:'Data / Analytics',c:'Mountain View, CA'},{n:'Databricks',ind:'Data / Analytics',c:'San Francisco, CA'},
+    {n:'Atlassian',ind:'Technology / SaaS',c:'San Francisco, CA'},{n:'Notion',ind:'Technology / SaaS',c:'San Francisco, CA'},
+    {n:'Figma',ind:'Technology / SaaS',c:'San Francisco, CA'},{n:'Rippling',ind:'Technology / SaaS',c:'San Francisco, CA'},
+    {n:'Ramp',ind:'Fintech',c:'New York, NY'},{n:'Plaid',ind:'Fintech',c:'San Francisco, CA'},
+    {n:'Robinhood',ind:'Fintech',c:'Palo Alto, CA'},{n:'Coinbase',ind:'Fintech',c:null},
+    {n:'Airbnb',ind:'E-commerce / Retail',c:'San Francisco, CA'},{n:'DoorDash',ind:'E-commerce / Retail',c:'San Francisco, CA'},
+    {n:'Instacart',ind:'E-commerce / Retail',c:'San Francisco, CA'},{n:'Nvidia',ind:'Hardware / Semiconductors',c:'San Jose, CA'},
+    {n:'AMD',ind:'Hardware / Semiconductors',c:'Austin, TX'},{n:'Palantir',ind:'Data / Analytics',c:'Denver, CO'},
+    {n:'Samsara',ind:'Technology / SaaS',c:'San Francisco, CA'},{n:'Verkada',ind:'Technology / SaaS',c:'Palo Alto, CA'},
+    {n:'Gusto',ind:'Fintech',c:'Denver, CO'},{n:'Brex',ind:'Fintech',c:'San Francisco, CA'},
+    {n:'Vanta',ind:'Technology / SaaS',c:'San Francisco, CA'},{n:'Amplitude',ind:'Data / Analytics',c:'San Francisco, CA'},
+    {n:'Confluent',ind:'Technology / SaaS',c:'Mountain View, CA'},{n:'Twilio',ind:'Technology / SaaS',c:'San Francisco, CA'},
+    {n:'Okta',ind:'Technology / SaaS',c:'San Francisco, CA'},{n:'CrowdStrike',ind:'Technology / SaaS',c:'Austin, TX'},
+    {n:'ServiceNow',ind:'Technology / SaaS',c:'San Jose, CA'},{n:'Cloudflare',ind:'Technology / SaaS',c:'San Francisco, CA'},
+    {n:'MongoDB',ind:'Technology / SaaS',c:'New York, NY'},{n:'GitLab',ind:'Technology / SaaS',c:null},
+    {n:'Asana',ind:'Technology / SaaS',c:'San Francisco, CA'},{n:'Sprinklr',ind:'Technology / SaaS',c:'New York, NY'},
+    {n:'Zendesk',ind:'Technology / SaaS',c:'San Francisco, CA'},{n:'Proofpoint',ind:'Technology / SaaS',c:'San Jose, CA'},
+    {n:'HCA Healthcare',ind:'Healthcare',c:'Nashville, TN'},{n:'Quest Diagnostics',ind:'Healthcare',c:null},
+    {n:'eClinicalWorks',ind:'Healthcare',c:null},{n:'Viatris',ind:'Healthcare',c:null},
+    {n:'QuidelOrtho',ind:'Healthcare',c:'San Diego, CA'},{n:'Otsuka',ind:'Biotech / Pharma',c:null},
+    {n:'Bio-Techne',ind:'Biotech / Pharma',c:'Minneapolis, MN'},{n:'Soleno Therapeutics',ind:'Biotech / Pharma',c:'Redwood City, CA'},
+    {n:'Zoox',ind:'Hardware / Semiconductors',c:'Redwood City, CA'},{n:'Lam Research',ind:'Hardware / Semiconductors',c:null},
+    {n:'Synaptics',ind:'Hardware / Semiconductors',c:'San Jose, CA'},{n:'Ayar Labs',ind:'Hardware / Semiconductors',c:'San Jose, CA'},
+    {n:'Impinj',ind:'Hardware / Semiconductors',c:'Seattle, WA'},{n:'King',ind:'Media / Gaming',c:null},
+    {n:'Vizient',ind:'Consulting',c:'Irving, TX'},{n:'Milliman',ind:'Consulting',c:null},
+    {n:'Circana',ind:'Data / Analytics',c:'Chicago, IL'},{n:'Cribl',ind:'Data / Analytics',c:null},
+    {n:'NetApp',ind:'Hardware / Semiconductors',c:null},
+    {n:'Shopify',ind:'E-commerce / Retail',c:'Ottawa, ON'},{n:'Wealthsimple',ind:'Fintech',c:'Toronto, ON'},
+    {n:'Faire',ind:'E-commerce / Retail',c:'Waterloo, ON'},{n:'Cohere',ind:'Data / Analytics',c:'Toronto, ON'},
+    {n:'Clio',ind:'Technology / SaaS',c:'Vancouver, BC'},{n:'1Password',ind:'Technology / SaaS',c:'Toronto, ON'},
+    {n:'Ada',ind:'Technology / SaaS',c:'Toronto, ON'}
+  ];
+
+  POSITIONS = [
+    {t:'Data Analytics Intern',f:'analytics'},{t:'Business Intelligence Intern',f:'analytics'},
+    {t:'Data Analyst Intern - Summer 2026',f:'analytics'},{t:'People Analytics Intern',f:'analytics'},
+    {t:'Marketing Analytics Intern',f:'analytics'},{t:'Growth Analytics Intern',f:'analytics'},
+    {t:'Data Science Intern',f:'datasci'},{t:'Machine Learning Intern',f:'datasci'},
+    {t:'Data Engineering Intern',f:'dataeng'},{t:'Analytics Engineer, New Grad',f:'dataeng'},
+    {t:'Product Management Intern',f:'product'},{t:'Associate Product Manager Intern',f:'product'},
+    {t:'Technical Product Manager Intern',f:'product'},{t:'Product Operations Intern',f:'product'},
+    {t:'Business Operations Intern',f:'ops'},{t:'Strategy & Operations Analyst Intern',f:'ops'},
+    {t:'Revenue Operations Intern',f:'ops'},{t:'Supply Chain Analyst Intern',f:'ops'},
+    {t:'Program Management Intern',f:'ops'},{t:'Corporate Strategy Intern',f:'strategy'},
+    {t:'Business Strategy Analyst Intern',f:'strategy'},{t:'Financial Analyst Intern',f:'finance'},
+    {t:'FP&A Intern - Summer 2026',f:'finance'},{t:'Software Engineer, New Grad',f:'swe'},
+    {t:'Software Engineering Intern',f:'swe'}
+  ];
+  FAM_SKILLS = {
+    analytics:['SQL','Python','Excel','Tableau','Power BI','Statistics','A/B Testing','Data Visualization','Looker'],
+    datasci:['Python','Machine Learning','Statistics','SQL','Pandas','R','Experimentation','Data Visualization'],
+    dataeng:['SQL','Python','Spark','Airflow','dbt','Snowflake','ETL','Git'],
+    product:['Product Sense','Roadmapping','SQL','Stakeholder Mgmt','Agile','User Research','Figma'],
+    ops:['Excel','SQL','Process Improvement','Stakeholder Mgmt','Project Mgmt','Communication','Tableau'],
+    strategy:['Excel','Market Research','Financial Modeling','Communication','SQL','Storytelling'],
+    finance:['Excel','Financial Modeling','SQL','Forecasting','Accounting','Power BI'],
+    swe:['Python','Java','JavaScript','Git','Data Structures','React','SQL']
+  };
+  FAM_RESUME = { analytics:'Analytics v3', datasci:'Analytics v3', dataeng:'SWE v1', product:'Product v2', ops:'Ops v2', strategy:'Ops v2', finance:'Ops v2', swe:'SWE v1' };
+  SKILL_POOL = ['SQL','Python','Excel','Tableau','Power BI','Statistics','A/B Testing','Data Visualization','Looker','Machine Learning','Pandas','R','Experimentation','Spark','Airflow','dbt','Snowflake','ETL','Git','Product Sense','Roadmapping','Stakeholder Mgmt','Agile','User Research','Figma','Process Improvement','Project Mgmt','Communication','Market Research','Financial Modeling','Forecasting','Accounting','Java','JavaScript','Data Structures','React','Storytelling'];
+  NOTES_POOL = ['','','','','','','Referral — Priya','Recruiter reached out on LinkedIn','OA due soon','Warm intro through alum','Applied via careers page','Following up next week'];
+
+  // ---------- lifecycle ----------
+  componentDidMount(){
+    this.setState({ rows: this.makeRows(442) });
+    this._onPaste = (e)=>this.handlePaste(e);
+    document.addEventListener('paste', this._onPaste);
+    this.initMap();
+    this._onResize = ()=>this.drawMap();
+    window.addEventListener('resize', this._onResize);
+    this._clockT = setInterval(()=>this.setState({now:Date.now()}), 60000);
+  }
+  componentWillUnmount(){
+    document.removeEventListener('paste', this._onPaste);
+    window.removeEventListener('resize', this._onResize);
+    if(this._toastT) clearTimeout(this._toastT);
+    if(this._parseT) clearTimeout(this._parseT);
+    if(this._clockT) clearInterval(this._clockT);
+  }
+  // ---------- rng / data gen ----------
+  rng(seed){ let a=seed>>>0; return ()=>{ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  pick(arr,r){ return arr[Math.floor(r()*arr.length)]; }
+  titleCase(s){ return s.trim().toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()); }
+  isoOf(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  todayISO(){ return this.isoOf(this.NOW); }
+  reachedFor(s){ return {Submitted:0,OA:1,Interview:2,Offer:3,Rejected:1,Ghosted:0}[s] ?? 0; }
+  isResponse(r){ return r.status!=='Submitted' && r.status!=='Ghosted'; }
+
+  makeRows(n){
+    const r = this.rng(20260721);
+    const cityKeys = Object.keys(this.CITY_COORDS);
+    const rows = [];
+    for(let i=0;i<n;i++){
+      const co = this.pick(this.COMPANIES, r);
+      const pos = this.pick(this.POSITIONS, r);
+      // status
+      const sr = r(); let status;
+      if(sr<0.46) status='Submitted'; else if(sr<0.74) status='Rejected'; else if(sr<0.85) status='Ghosted';
+      else if(sr<0.90) status='OA'; else if(sr<0.955) status='Interview'; else status='Offer';
+      let reached = this.reachedFor(status);
+      if(status==='Rejected'){ const x=r(); reached = x<0.5?0:(x<0.8?1:2); }
+      if(status==='Ghosted'){ reached = r()<0.85?0:1; }
+      // location
+      const lr = r(); let raw;
+      if(co.c && lr<0.5) raw=co.c;
+      else if(lr<0.68) raw='Remote';
+      else if(lr<0.80) raw='';
+      else { const k=this.pick(cityKeys,r); raw = r()<0.28 ? this.messy(k) : k; }
+      // skills
+      const pool = this.FAM_SKILLS[pos.f];
+      const nsk = 3+Math.floor(r()*3);
+      const sk=[]; const p2=pool.slice();
+      for(let j=0;j<nsk && p2.length;j++){ sk.push(p2.splice(Math.floor(r()*p2.length),1)[0]); }
+      // level / salary
+      let level='Entry-level';
+      if(/New Grad/.test(pos.t)) level='New Grad'; else if(/Intern/.test(pos.t)) level='Intern';
+      let salary='';
+      if(level==='Intern'){ if(r()<0.72) salary='$'+(32+Math.floor(r()*24))+'/hr'; }
+      else { if(r()<0.68) salary='$'+(98+Math.floor(r()*52))+'k'; }
+      // date w/ recency bias
+      const off = Math.floor(Math.pow(r(),1.35)*74);
+      const d = new Date(this.NOW.getTime() - off*this.DAY);
+      const slug = co.n.toLowerCase().replace(/[^a-z0-9]+/g,'');
+      rows.push({
+        id: 442-i,
+        company: co.n, position: pos.t, industry: co.ind, level, salary,
+        skills: sk, status, reached,
+        location: raw, loc: this.normalizeLoc(raw),
+        applied: this.isoOf(d), appliedTs: d.getTime(),
+        resume: this.FAM_RESUME[pos.f], notes: this.pick(this.NOTES_POOL, r),
+        sourceUrl: r()<0.7 ? ('https://careers.'+slug+'.com/'+(442-i)) : ''
+      });
+    }
+    rows.sort((a,b)=>b.appliedTs-a.appliedTs);
+    return rows;
+  }
+  messy(key){ const city = key.split(',')[0].toLowerCase(); if(city==='san francisco') return 'sf'; return city; }
+
+  normalizeLoc(raw){
+    const s=(raw||'').trim();
+    if(!s) return {type:'unknown', display:'—'};
+    const low=s.toLowerCase();
+    if(low==='remote' || low.indexOf('remote')>=0) return {type:'remote',display:'Remote'};
+    let m=s.match(/^([a-zA-Z.\-' ]+),\s*([A-Za-z]{2})$/);
+    if(m){ const key=this.titleCase(m[1])+', '+m[2].toUpperCase(); const st=m[2].toUpperCase(); const co=this.CITY_COORDS[key];
+      const country=(co&&co[2])?co[2]:(this.CA_PROV.indexOf(st)>=0?'CA':'US');
+      return co?{type:'city',display:key,key,lat:co[0],lng:co[1],country}:{type:'city',display:key,key,country}; }
+    if(this.BARE_CITY[low]){ const key=this.BARE_CITY[low]; if(key==='Remote') return {type:'remote',display:'Remote'};
+      const co=this.CITY_COORDS[key]; const country=(co&&co[2])?co[2]:'US'; return {type:'city',display:key,key,lat:co&&co[0],lng:co&&co[1],country}; }
+    return {type:'city',display:this.titleCase(s)};
+  }
+
+  // ---------- map ----------
+  initMap(){
+    let tries=0;
+    const go=()=>{
+      if(window.d3 && window.topojson){
+        fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json')
+          .then(r=>r.json())
+          .then(topo=>{ const all=window.topojson.feature(topo, topo.objects.countries); this.naFeatures={type:'FeatureCollection',features:all.features.filter(f=>['840','124'].indexOf(String(f.id))>=0)}; this.setState({mapReady:true}); this.drawMap(); })
+          .catch(()=>this.setState({mapReady:'error'}));
+      } else if(tries++<70){ setTimeout(go,100); }
+      else this.setState({mapReady:'error'});
+    };
+    go();
+  }
+  cityAgg(rows){
+    const m={};
+    rows.forEach(r=>{ const l=r.loc; if(l && l.type==='city' && l.lat!=null){ if(!m[l.key]) m[l.key]={key:l.key,lat:l.lat,lng:l.lng,country:l.country||'US',count:0,resp:0}; m[l.key].count++; if(this.isResponse(r)) m[l.key].resp++; } });
+    return Object.values(m);
+  }
+  drawMap(){
+    const el=this.mapRef.current;
+    if(!el || !window.d3 || !this.naFeatures) return;
+    const d3=window.d3;
+    const w=Math.max(240, el.clientWidth||300), h=230;
+    const scope=this.state.mapScope;
+    let agg=this.cityAgg(this.filteredRows());
+    if(scope==='us') agg=agg.filter(a=>a.country==='US');
+    else if(scope==='ca') agg=agg.filter(a=>a.country==='CA');
+    const ids = scope==='us'?['840']: scope==='ca'?['124']:['840','124'];
+    const feats=this.naFeatures.features.filter(f=>ids.indexOf(String(f.id))>=0);
+    const proj=d3.geoConicConformal().rotate([96,0]).parallels([33,55]);
+    const fc = agg.length>=2
+      ? {type:'FeatureCollection',features:agg.map(a=>({type:'Feature',geometry:{type:'Point',coordinates:[a.lng,a.lat]}}))}
+      : {type:'FeatureCollection',features:feats};
+    try{ proj.fitExtent([[26,22],[w-26,h-22]], fc); }catch(e){ proj.fitSize([w,h], {type:'FeatureCollection',features:feats}); }
+    if(agg.length<2 && proj.scale()>1600) proj.scale(1600);
+    const path=d3.geoPath(proj);
+    const outlines=feats.map(f=>'<path d="'+(path(f)||'')+'" fill="#e2dccd" stroke="#cfc8b9" stroke-width="0.6"/>').join('');
+    const maxC=Math.max(1,...agg.map(a=>a.count));
+    const locF=this.state.filter.locations;
+    const pins=agg.map(a=>{
+      const p=proj([a.lng,a.lat]); if(!p) return '';
+      const rad=4+Math.sqrt(a.count/maxC)*13;
+      const act=!locF.length || locF.indexOf(a.key)>=0;
+      return '<g class="pin" data-loc="'+a.key+'" style="cursor:pointer"><title>'+a.key+' · '+a.count+' apps</title>'+
+        '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="'+rad+'" fill="#41678a" fill-opacity="'+(act?0.2:0.05)+'" stroke="#41678a" stroke-opacity="'+(act?0.85:0.22)+'" stroke-width="1.2"/>'+
+        '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="2.1" fill="#41678a" fill-opacity="'+(act?1:0.28)+'"/></g>';
+    }).join('');
+    el.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'" style="display:block;overflow:hidden">'+outlines+pins+'</svg>';
+    el.onclick=(ev)=>{ const g=ev.target.closest('.pin'); if(g){ const key=g.getAttribute('data-loc'); const a=agg.find(x=>x.key===key); this.setState({mapPick: a?{key:a.key,count:a.count}:null}); } };
+  }
+
+  // ---------- filtering ----------
+  filteredRows(){
+    const f=this.state.filter, q=this.state.search.trim().toLowerCase();
+    return this.state.rows.filter(r=>{
+      if(q){ const hay=(r.company+' '+r.position+' '+r.loc.display).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+      if(f.skills.length && !f.skills.some(s=>r.skills.indexOf(s)>=0)) return false;
+      if(f.industries.length && f.industries.indexOf(r.industry)<0) return false;
+      if(f.statuses.length && f.statuses.indexOf(r.status)<0) return false;
+      if(f.locations.length && !(r.loc.key && f.locations.indexOf(r.loc.key)>=0)) return false;
+      if(f.stage!=null && r.reached < f.stage) return false;
+      return true;
+    });
+  }
+  hasFilter(){ const f=this.state.filter; return f.skills.length||f.industries.length||f.statuses.length||f.locations.length||f.stage!=null; }
+  toggleFilter(cat,val){
+    this.setState(s=>{ const arr=s.filter[cat].slice(); const i=arr.indexOf(val); if(i>=0) arr.splice(i,1); else arr.push(val); return {filter:{...s.filter,[cat]:arr}, page:1}; });
+  }
+  toggleStage(idx){ this.setState(s=>({filter:{...s.filter, stage: s.filter.stage===idx?null:idx}, page:1})); }
+  resetFilters(){ this.setState({filter:{skills:[],industries:[],statuses:[],locations:[],stage:null}, search:'', page:1}); }
+
+  // ---------- sort ----------
+  setSort(key){ this.setState(s=>({ sortKey:key, sortDir: s.sortKey===key ? (s.sortDir==='asc'?'desc':'asc') : (key==='applied'?'desc':'asc'), page:1 })); }
+  sortedRows(rows){
+    const {sortKey,sortDir}=this.state; const dir=sortDir==='asc'?1:-1;
+    const val=r=>({company:r.company.toLowerCase(),position:r.position.toLowerCase(),location:r.loc.display.toLowerCase(),applied:r.appliedTs,status:this.STATUSES.indexOf(r.status)})[sortKey];
+    return rows.slice().sort((a,b)=>{ const x=val(a),y=val(b); return x<y?-1*dir:x>y?1*dir:0; });
+  }
+
+  // ---------- toast ----------
+  showToast(msg,kind){
+    if(this._toastT) clearTimeout(this._toastT);
+    const id=Date.now(); this._toastId=id;
+    this.setState({toast:{msg,kind}});
+    this._toastT=setTimeout(()=>{ if(this._toastId===id) this.setState({toast:null}); }, 3000);
+  }
+
+  // ---------- paste + parse ----------
+  handlePaste(e){
+    if(this.state.review || this.state.parsing) return;
+    const t=e.target;
+    if(t && (t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable)) return;
+    const cd=e.clipboardData||window.clipboardData;
+    const text=cd?cd.getData('text'):'';
+    if(!text || !text.trim()) return;
+    e.preventDefault();
+    const clean=text.trim(); const words=clean.split(/\s+/);
+    if(clean.length<45 || words.length<8){
+      this.showToast("That didn't look like a job posting — try copying the full posting.", 'warn'); return;
+    }
+    this.setState({parsing:true});
+    if(this._parseT) clearTimeout(this._parseT);
+    this._parseT=setTimeout(()=>{ this.setState({parsing:false, review:this.parsePosting(clean)}); }, 1050);
+  }
+  guessIndustry(low){
+    const tests=[['healthcare|clinic|patient|hospital|pharma','Healthcare'],['biotech|therapeut|genom|molecul|clinical trial','Biotech / Pharma'],
+      ['bank|payment|fintech|trading|lending|financ','Fintech'],['retail|commerce|marketplace|shopping|consumer goods','E-commerce / Retail'],
+      ['semiconductor|hardware|chip|silicon|device|robot','Hardware / Semiconductors'],['game|gaming|media|entertainment|studio','Media / Gaming'],
+      ['consult|advisory','Consulting'],['analytics|data platform|business intelligence','Data / Analytics']];
+    for(const [re,ind] of tests){ if(new RegExp(re,'i').test(low)) return ind; }
+    return 'Technology / SaaS';
+  }
+  parsePosting(text){
+    const lines=text.split(/\n+/).map(l=>l.trim()).filter(Boolean);
+    const low=text.toLowerCase();
+    let company='';
+    const known=this.COMPANIES.map(c=>c.n).find(n=>new RegExp('\\b'+n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(text));
+    if(known) company=known;
+    if(!company){ const m=text.match(/\bat\s+([A-Z][A-Za-z0-9&.\-' ]{2,28})/); if(m) company=m[1].trim().replace(/[.,]$/,''); }
+    if(!company){ const m=text.match(/company[:\s]+([A-Za-z0-9&.\-' ]{2,28})/i); if(m) company=m[1].trim(); }
+    let position='';
+    const roleRe=/(intern|internship|new grad|new-grad|graduate|engineer|analyst|manager|scientist|associate|developer|coordinator|specialist)/i;
+    const pline=lines.find(l=>roleRe.test(l) && l.length<=72);
+    if(pline) position=pline.replace(/\s{2,}/g,' ').trim();
+    if(!position){ const m=text.match(/(position|role|job title|title)[:\s]+([^\n]{3,72})/i); if(m) position=m[2].trim(); }
+    let location='';
+    for(const l of lines){ const mm=l.trim().match(/^([A-Za-z.\-' ]{2,30},\s*[A-Z]{2})$/); if(mm){ location=mm[1].trim(); break; } }
+    if(!location){ const m=text.match(/\b([A-Z][a-z.\-']+(?:[ \t][A-Z][a-z.\-']+){0,2},[ \t]*[A-Z]{2})\b/); if(m) location=m[1]; }
+    if(!location && /\bremote\b/i.test(text)) location='Remote';
+    if(!location){ const l=text.match(/location[:\s]+([^\n]{2,30})/i); if(l) location=l[1].trim(); }
+    if(location && company && location.indexOf(company)===0) location=location.slice(company.length).trim();
+    const skills=this.SKILL_POOL.filter(s=>new RegExp('(^|[^a-zA-Z])'+s.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'([^a-zA-Z]|$)','i').test(low)).slice(0,7);
+    let salary=''; const sm=text.match(/\$\s?\d{2,3}(,\d{3})?(\s?[-–—]\s?\$?\s?\d{2,3}(,\d{3})?)?(\s?\/?\s?(hr|hour|yr|year))?/i)||text.match(/\$\d{2,3}\s?k\b/i);
+    if(sm) salary=sm[0].replace(/\s+/g,' ').trim();
+    let url=''; const um=text.match(/https?:\/\/[^\s)"']+/); if(um) url=um[0];
+    const industry=this.guessIndustry(low);
+    let level='Entry-level';
+    if(/new grad|new-grad|university grad|recent grad/i.test(text)) level='New Grad';
+    else if(/\bintern|internship\b/i.test(text)) level='Intern';
+    else if(/\bsenior|sr\.?\b/i.test(text)) level='Senior';
+    else if(/\bassociate\b/i.test(text)) level='Associate';
+    if(!company && !position) return this.sampleFallback();
+    if(!position) position='Role (edit me)';
+    if(!company) company='Company (edit me)';
+    return { position, company, location, skills, industry, level, salary, sourceUrl:url,
+      status:'Submitted', appliedDate:this.todayISO(), resume:'Analytics v3', draft:'' };
+  }
+  sampleFallback(){
+    const samples=[
+      { position:'Data Analytics Intern — Summer 2026', company:'Databricks', location:'San Francisco, CA', skills:['SQL','Python','Tableau','Statistics'], industry:'Data / Analytics', level:'Intern', salary:'$48/hr', sourceUrl:'https://careers.databricks.com/12841' },
+      { position:'Product Management Intern', company:'Ramp', location:'New York, NY', skills:['Product Sense','SQL','Roadmapping','Stakeholder Mgmt'], industry:'Fintech', level:'Intern', salary:'$52/hr', sourceUrl:'https://ramp.com/careers/pm-intern' },
+      { position:'Business Intelligence Intern', company:'DoorDash', location:'Remote', skills:['SQL','Python','Excel','Data Visualization'], industry:'E-commerce / Retail', level:'Intern', salary:'', sourceUrl:'https://doordash.com/careers/bi-intern' }
+    ];
+    if(this._fbi==null) this._fbi=0; const s=samples[this._fbi%samples.length]; this._fbi++;
+    return {...s, status:'Submitted', appliedDate:this.todayISO(), resume:'Analytics v3', draft:''};
+  }
+
+  // ---------- review edits ----------
+  rv(patch){ this.setState(s=> s.review?{review:{...s.review,...patch}}:{}); }
+  addSkillFromDraft(){ const d=(this.state.review.draft||'').trim(); if(d && this.state.review.skills.indexOf(d)<0) this.rv({skills:[...this.state.review.skills,d],draft:''}); else this.rv({draft:''}); }
+  addToTracker(){
+    const r=this.state.review; if(!r) return;
+    const row={ id:(this.state.rows.reduce((mx,x)=>Math.max(mx,x.id),442))+1,
+      company:r.company, position:r.position, industry:r.industry, level:r.level, salary:r.salary,
+      skills:r.skills.slice(), status:r.status, reached:this.reachedFor(r.status),
+      location:r.location, loc:this.normalizeLoc(r.location),
+      applied:r.appliedDate, appliedTs:new Date(r.appliedDate+'T00:00').getTime(),
+      resume:r.resume, notes:'', sourceUrl:r.sourceUrl };
+    this.setState(s=>({rows:[row,...s.rows], review:null, page:1, sortKey:'applied', sortDir:'desc'}));
+    this.showToast('Added — '+r.company+' · '+r.position, 'success');
+  }
+
+  toggleExpand(id){ this.setState(s=>{ const e={...s.expanded}; if(e[id]) delete e[id]; else e[id]=true; return {expanded:e}; }); }
+  pieArcs(items, total, cx, cy, r){
+    if(!total) return [];
+    let a0=-Math.PI/2; const out=[];
+    items.forEach((it,i)=>{
+      const frac=it.value/total; const a1=a0+frac*Math.PI*2;
+      const large=(a1-a0)>Math.PI?1:0;
+      const p=(rr,a)=>[cx+rr*Math.cos(a),cy+rr*Math.sin(a)];
+      let d;
+      if(frac>=0.9999){ d=`M${cx} ${(cy-r).toFixed(2)} A${r} ${r} 0 1 1 ${(cx-0.01).toFixed(2)} ${(cy-r).toFixed(2)} Z`; }
+      else { const [x0,y0]=p(r,a0),[x1,y1]=p(r,a1); d=`M${cx} ${cy} L${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z`; }
+      out.push({...it, d, pct:Math.round(frac*100), color:this.PIE_TINTS[i%this.PIE_TINTS.length]});
+      a0=a1;
+    });
+    return out;
+  }
+  updateRow(id,patch){ this.setState(s=>({rows:s.rows.map(r=>r.id===id?{...r,...patch}:r)})); }
+  setRowStatus(id,status){ this.updateRow(id,{status,reached:this.reachedFor(status)}); }
+  setRowNotes(id,notes){ this.updateRow(id,{notes}); }
+  parseMMDD(text, oldIso){
+    const t=(text||'').trim(); if(!t) return null;
+    const mn={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+    let mo, day;
+    const m=t.toLowerCase().match(/([a-z]{3})[a-z]*\.?\s*(\d{1,2})/);
+    if(m && mn[m[1]]){ mo=mn[m[1]]; day=parseInt(m[2],10); }
+    else { const dg=t.replace(/[^0-9]/g,'');
+      if(dg.length===4){ mo=+dg.slice(0,2); day=+dg.slice(2); }
+      else if(dg.length===3){ mo=+dg.slice(0,1); day=+dg.slice(1); }
+      else return null; }
+    if(!(mo>=1&&mo<=12)||!(day>=1&&day<=31)) return null;
+    const yr = oldIso? oldIso.slice(0,4) : String(new Date().getFullYear());
+    return yr+'-'+String(mo).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+  }
+  commitDate(id, text){
+    const row=this.state.rows.find(r=>r.id===id); if(!row){ this.clearDateEdit(id); return; }
+    const iso=this.parseMMDD(text, row.applied);
+    if(iso) this.updateRow(id,{applied:iso, appliedTs:new Date(iso+'T00:00').getTime()});
+    this.clearDateEdit(id);
+  }
+  clearDateEdit(id){ this.setState(s=>{ const e={...s.dateEdit}; delete e[id]; return {dateEdit:e}; }); }
+
+  // ---------- derived ----------
+  derive(rows){
+    const total=rows.length;
+    const byStatus={}; this.STATUSES.forEach(s=>byStatus[s]=0);
+    rows.forEach(r=>byStatus[r.status]++);
+    const ge=k=>rows.filter(r=>r.reached>=k).length;
+    const responded=rows.filter(r=>this.isResponse(r)).length;
+    return { total, byStatus, ge, responded,
+      interviews:ge(2), offers:ge(3),
+      thisWeek:rows.filter(r=>(this.NOW-r.appliedTs)<7*this.DAY).length };
+  }
+
+  renderVals(){
+    if(this.state.mapReady===true){ if(this._raf) clearTimeout(this._raf); this._raf=setTimeout(()=>this.drawMap(),0); }
+    const isMac = typeof navigator!=='undefined' && /Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent||'');
+    const rows=this.filteredRows();
+    const D=this.derive(rows);
+    const allTotal=this.state.rows.length;
+    const hf=!!this.hasFilter();
+
+    // Overview: all-time applications + deadline countdown
+    const totalApps = allTotal.toLocaleString();
+    const totalAppsSub = hf ? (D.total.toLocaleString()+' match current filter') : '- keep going';
+    const rnow = new Date(this.state.now);
+    const rnowMid = new Date(rnow.getFullYear(), rnow.getMonth(), rnow.getDate());
+    let target = new Date(rnow.getFullYear(), 11, 11);
+    if(target < rnowMid) target = new Date(rnow.getFullYear()+1, 11, 11);
+    const cdDays = Math.max(0, Math.round((target - rnowMid)/this.DAY));
+    const cdWeeks = Math.floor(cdDays/7);
+    const cdDaysExtra = cdDays%7;
+    const cdTargetLabel = this.MONTHS[target.getMonth()]+' '+target.getDate()+', '+target.getFullYear();
+    const cycleStart = new Date(2026, 6, 21);
+    const daysSinceStart = Math.max(1, Math.floor((rnowMid - cycleStart)/this.DAY) + 1);
+    const weekPips = Array.from({length: Math.min(daysSinceStart,140)}, (_,i)=>({i}));
+
+    // Funnel
+    const base=Math.max(1,D.ge(0));
+    const stageDefs=[['Submitted',0],['OA',1],['Interview',2],['Offer',3]];
+    const fills=['#41678a','#7195b2','#a5bfd2','#c19243'];
+    let prev=null;
+    const funnelStages=stageDefs.map(([key,idx],i)=>{
+      const count=D.ge(idx); const width=Math.round(count/base*100);
+      const conv= prev==null?'100%':(prev? Math.round(count/prev*100):0)+'%';
+      prev=count; const active=this.state.filter.stage===idx;
+      return { key, count, width: Math.max(count>0?4:0,width), conv, fill: active?'#2c4a66':fills[i], labelColor: active?'#2c4a66':'#37414c', onClick:()=>this.toggleStage(idx) };
+    });
+    const exitDef=[['Rejected','#a35242'],['Ghosted','#948e82']];
+    const exits=exitDef.map(([key,fg])=>{ const c=D.byStatus[key]; const active=this.state.filter.statuses.indexOf(key)>=0;
+      return { key, count:c, pct:(D.total?Math.round(c/D.total*100):0)+'%', fg: active?'#2c3640':fg, deco: active?'underline':'none', onClick:()=>this.toggleFilter('statuses',key) }; });
+
+    // Momentum (8 weeks)
+    const weeks=[]; for(let i=0;i<8;i++) weeks.push(0);
+    this.state.rows.forEach(r=>{ const wk=Math.floor((this.NOW-r.appliedTs)/(7*this.DAY)); if(wk>=0&&wk<8) weeks[wk]++; });
+    const maxWk=Math.max(1,...weeks);
+    const momentum=weeks.map((c,i)=>({ h:Math.round(c/maxWk*100), fill:i===0?'#41678a':'#b9cbd9', label:i===0?'now':('-'+i) })).reverse();
+    const thisWeek=weeks[0], lastWeek=weeks[1];
+    const wd=thisWeek-lastWeek;
+    const deltaLabel = wd>0? ('▲ '+wd+' more than last week') : wd<0? ('▼ '+Math.abs(wd)+' fewer than last week') : '= same as last week';
+    const deltaColor = wd>0?'#3f7292':wd<0?'#b3653f':'#9aa4ad';
+
+    // Skills pie (share of mentions)
+    const smap={};
+    rows.forEach(r=>r.skills.forEach(s=>{ if(!smap[s]) smap[s]={n:s,count:0}; smap[s].count++; }));
+    let skillArr=Object.values(smap).sort((a,b)=>b.count-a.count);
+    const skillMentions=skillArr.reduce((t,s)=>t+s.count,0);
+    const topSkills=skillArr.slice(0,8);
+    const skillOther=skillMentions-topSkills.reduce((t,s)=>t+s.count,0);
+    const fSel=this.state.filter.skills;
+    const skillItems=topSkills.map(s=>({ name:s.n, value:s.count, count:s.count, other:false }));
+    if(skillOther>0) skillItems.push({ name:'Other', value:skillOther, count:skillOther, other:true });
+    const skillArcs=this.pieArcs(skillItems, skillMentions, 82, 82, 80).map(a=>{ const sel=fSel.indexOf(a.name)>=0;
+      return { ...a, color: a.other? '#d9d3c6' : (sel? '#2c4a66' : a.color),
+        nameColor: sel?'#2c4a66':'#37414c', opacity: (fSel.length && !sel && !a.other)?0.4:1,
+        onClick: a.other? (()=>{}) : (()=>this.toggleFilter('skills',a.name)) }; });
+
+    // Industry pie (share of applications)
+    const imap={};
+    rows.forEach(r=>{ if(!imap[r.industry]) imap[r.industry]={n:r.industry,count:0}; imap[r.industry].count++; });
+    let indArr=Object.values(imap).sort((a,b)=>b.count-a.count);
+    const indTotal=indArr.reduce((t,i)=>t+i.count,0);
+    const topInd=indArr.slice(0,7);
+    const indOther=indTotal-topInd.reduce((t,i)=>t+i.count,0);
+    const iSel=this.state.filter.industries;
+    const indItems=topInd.map(i=>({ name:i.n, value:i.count, count:i.count, other:false }));
+    if(indOther>0) indItems.push({ name:'Other', value:indOther, count:indOther, other:true });
+    const industryArcs=this.pieArcs(indItems, indTotal, 82, 82, 80).map(a=>{ const sel=iSel.indexOf(a.name)>=0;
+      return { ...a, color: a.other? '#d9d3c6' : (sel? '#2c4a66' : a.color),
+        nameColor: sel?'#2c4a66':'#37414c', opacity:(iSel.length && !sel && !a.other)?0.4:1,
+        onClick: a.other? (()=>{}) : (()=>this.toggleFilter('industries',a.name)) }; });
+
+    // Map caption
+    const mapped=rows.filter(r=>r.loc.type==='city'&&r.loc.lat!=null).length;
+    const remote=rows.filter(r=>r.loc.type==='remote').length;
+    const unk=rows.filter(r=>r.loc.type==='unknown'||(r.loc.type==='city'&&r.loc.lat==null)).length;
+    const caCount=rows.filter(r=>r.loc&&r.loc.country==='CA').length;
+    const mapCaption=mapped+' mapped · '+remote+' remote · '+unk+' unspec · '+caCount+' in Canada';
+    const mp=this.state.mapPick;
+    const hasMapPick=!!mp;
+    const mapPickLabel = mp ? (mp.key+' · '+mp.count+' application'+(mp.count===1?'':'s')) : '';
+
+    // Active chips
+    const f=this.state.filter; const chips=[];
+    f.skills.forEach(s=>chips.push({kind:'skill',label:s,remove:()=>this.toggleFilter('skills',s)}));
+    f.industries.forEach(s=>chips.push({kind:'ind',label:s,remove:()=>this.toggleFilter('industries',s)}));
+    f.statuses.forEach(s=>chips.push({kind:'status',label:s,remove:()=>this.toggleFilter('statuses',s)}));
+    f.locations.forEach(s=>chips.push({kind:'loc',label:s,remove:()=>this.toggleFilter('locations',s)}));
+    if(f.stage!=null) chips.push({kind:'stage',label:'reached '+stageDefs[f.stage][0],remove:()=>this.toggleStage(f.stage)});
+
+    // Table
+    const sorted=this.sortedRows(rows);
+    const totalPages=Math.max(1,Math.ceil(sorted.length/this.state.pageSize));
+    const page=Math.min(this.state.page,totalPages);
+    const start=(page-1)*this.state.pageSize;
+    const slice=sorted.slice(start,start+this.state.pageSize);
+    const pageRows=slice.map((r,idx)=>{ const m=this.STATUS_META[r.status]; const d=new Date(r.applied+'T00:00');
+      const appliedDisp=this.MONTHS[d.getMonth()]+' '+d.getDate();
+      const de=this.state.dateEdit[r.id];
+      return { ...r, locDisplay:r.loc.display,
+        appliedDisplay:appliedDisp,
+        dateValue: de!=null ? de : appliedDisp,
+        onAppliedFocus:()=>this.setState(s=>({dateEdit:{...s.dateEdit,[r.id]:appliedDisp}})),
+        onAppliedInput:e=>{ const v=e.target.value; this.setState(s=>({dateEdit:{...s.dateEdit,[r.id]:v}})); },
+        onAppliedCommit:e=>this.commitDate(r.id, e.target.value),
+        onAppliedKey:e=>{ if(e.key==='Enter'){ e.preventDefault(); e.target.blur(); } },
+        badgeBg:m.bg, badgeFg:m.fg, badgeBorder:m.border,
+        offerFill: m.bg!=='transparent', badgePad: m.bg!=='transparent'?'3px 10px':'0',
+        rowBg: (idx%2===1)?'#f1ede4':'transparent',
+        hasUrl:!!r.sourceUrl, noUrl:!r.sourceUrl, sourceUrl:r.sourceUrl,
+        salaryDisplay:r.salary||'—',
+        expanded:!!this.state.expanded[r.id], chev:this.state.expanded[r.id]?'▾':'▸',
+        chevBg:this.state.expanded[r.id]?'#e9e4d8':'#efece3', chevBorder:this.state.expanded[r.id]?'#c2c8cf':'#ddd6c8', chevFg:this.state.expanded[r.id]?'#41678a':'#8b939e',
+        toggleExpand:()=>this.toggleExpand(r.id),
+        detailSkills:r.skills.map(s=>({name:s,onClick:()=>this.toggleFilter('skills',s)})),
+        skillTags:r.skills.slice(0,3).map(s=>({name:s,onClick:()=>this.toggleFilter('skills',s)})) }; });
+    const arrow=this.state.sortDir==='asc'?'↑':'↓';
+    const si=k=>this.state.sortKey===k?arrow:'';
+    const sortInd={company:si('company'),position:si('position'),location:si('location'),applied:si('applied'),status:si('status')};
+    const pageInfo= sorted.length? ('Showing '+(start+1)+'–'+Math.min(start+this.state.pageSize,sorted.length)+' of '+sorted.length):'0 results';
+
+    const review=this.state.review||{skills:[],draft:''};
+    const reviewSkills=(review.skills||[]).map((s,i)=>({name:s,remove:()=>this.rv({skills:review.skills.filter((_,j)=>j!==i)})}));
+    const toast=this.state.toast||{};
+    const toastStyle = toast.kind==='success'?{bg:'#e7eef4',border:'#c9d9e5',fg:'#2c5a80',icon:'✓'}
+      : toast.kind==='warn'?{bg:'#f7ecd4',border:'#e7d5a8',fg:'#8a6420',icon:'⚠'}
+      : {bg:'#2c3640',border:'#2c3640',fg:'#f4f2ec',icon:'•'};
+
+    const metricFreq=this.state.skillMetric==='freq';
+    const msc=this.state.mapScope;
+    const scB=k=> msc===k?'#fbfaf7':'transparent';
+    const scF=k=> msc===k?'#2c3640':'#8b939e';
+
+    return {
+      pasteKey: isMac?'⌘':'Ctrl',
+      hasFilter:hf, activeChips:chips, resetFilters:()=>this.resetFilters(),
+      shownCount:D.total, totalCount:allTotal,
+      totalApps, totalAppsSub,
+      cdWeeks, cdDays, cdDaysExtra, cdTargetLabel, weekPips,
+      funnelStages, exits,
+      momentum, thisWeek, deltaLabel, deltaColor,
+      skillArcs, industryArcs,
+      mapRef:this.mapRef, mapCaption, mapError:this.state.mapReady==='error',
+      hasMapPick, mapPickLabel, clearMapPick:()=>this.setState({mapPick:null}),
+      setScopeAll:()=>this.setState({mapScope:'all'}), setScopeUS:()=>this.setState({mapScope:'us'}), setScopeCA:()=>this.setState({mapScope:'ca'}),
+      scopeAllBg:scB('all'), scopeAllFg:scF('all'), scopeUSBg:scB('us'), scopeUSFg:scF('us'), scopeCABg:scB('ca'), scopeCAFg:scF('ca'),
+      search:this.state.search, onSearch:e=>this.setState({search:e.target.value,page:1}),
+      sortCompany:()=>this.setSort('company'), sortPosition:()=>this.setSort('position'), sortLocation:()=>this.setSort('location'), sortApplied:()=>this.setSort('applied'), sortStatus:()=>this.setSort('status'),
+      sortInd,
+      pageRows, pageInfo, noResults: sorted.length===0,
+      prevPage:()=>this.setState(s=>({page:Math.max(1,s.page-1)})), nextPage:()=>this.setState(s=>({page:Math.min(totalPages,s.page+1)})),
+      prevColor: page>1?'#2c3640':'#c2c8cf', nextColor: page<totalPages?'#2c3640':'#c2c8cf',
+      parsing:this.state.parsing,
+      hasReview:!!this.state.review, review,
+      reviewSkills,
+      industryOptions:this.INDUSTRIES, levelOptions:this.LEVELS, statusOptions:this.STATUSES, resumeOptions:this.RESUMES,
+      onRvPosition:e=>this.rv({position:e.target.value}), onRvCompany:e=>this.rv({company:e.target.value}),
+      onRvLocation:e=>this.rv({location:e.target.value}), onRvSalary:e=>this.rv({salary:e.target.value}),
+      onRvUrl:e=>this.rv({sourceUrl:e.target.value}), onRvIndustry:e=>this.rv({industry:e.target.value}),
+      onRvLevel:e=>this.rv({level:e.target.value}), onRvStatus:e=>this.rv({status:e.target.value}),
+      onRvDate:e=>this.rv({appliedDate:e.target.value}), onRvResume:e=>this.rv({resume:e.target.value}),
+      onRvDraft:e=>this.rv({draft:e.target.value}), onRvDraftKey:e=>{ if(e.key==='Enter'){ e.preventDefault(); this.addSkillFromDraft(); } },
+      discard:()=>this.setState({review:null}), addToTracker:()=>this.addToTracker(), stop:e=>e.stopPropagation(),
+      hasToast:!!this.state.toast, toast:{...toast, ...toastStyle},
+    };
+  }
+}
+</script>
+</body>
+</html>

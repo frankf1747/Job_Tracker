@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Design-tool iteration screenshots — scratch, not app assets.
+# The prototype itself (Job Tracker.dc.html, support.js) and the one
+# referenced asset (fuji_hero.jpg) are tracked.
+job-application-tracker/project/screenshots/
+job-application-tracker/project/uploads/*
+!job-application-tracker/project/uploads/fuji_hero.jpg
+job-application-tracker/project/.thumbnail
