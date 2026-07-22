@@ -1,4 +1,4 @@
-import { Fragment, type CSSProperties } from 'react';
+import { Fragment, useEffect, useState, type CSSProperties } from 'react';
 import type { SortDir, SortKey } from '../lib/derive';
 import { MONTHS, STATUSES, STATUS_META } from '../lib/schema';
 import type { Application, Status } from '../lib/schema';
@@ -34,6 +34,64 @@ function shortDate(iso: string): string {
   return MONTHS[d.getMonth()] + ' ' + d.getDate();
 }
 
+/** How long an armed delete stays armed before reverting. */
+const ARM_MS = 4000;
+
+/**
+ * Two-step delete: the first click arms it, the second commits.
+ *
+ * Deleting an application is not undoable, and this lives inside a panel the
+ * user opened deliberately, so a modal would be heavier than the risk warrants.
+ * Arming reverts on its own so a forgotten click doesn't stay dangerous.
+ */
+function DeleteControl({ label, onDelete }: { label: string; onDelete: () => void }) {
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), ARM_MS);
+    return () => clearTimeout(t);
+  }, [armed]);
+
+  return (
+    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+      {armed && (
+        <button
+          onClick={() => setArmed(false)}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            fontSize: 11.5,
+            color: '#8b939e',
+            textDecoration: 'underline',
+            textUnderlineOffset: 3,
+          }}
+        >
+          Cancel
+        </button>
+      )}
+      <button
+        onClick={() => (armed ? onDelete() : setArmed(true))}
+        aria-label={armed ? `Confirm deleting ${label}` : `Delete ${label}`}
+        style={{
+          background: armed ? '#a35242' : 'transparent',
+          border: `1px solid ${armed ? '#a35242' : '#ddd6c8'}`,
+          borderRadius: 6,
+          padding: '5px 11px',
+          fontSize: 11.5,
+          fontWeight: armed ? 600 : 400,
+          color: armed ? '#f7f5f0' : '#8b939e',
+          whiteSpace: 'nowrap',
+          transition: 'background .15s, border-color .15s, color .15s',
+        }}
+      >
+        {armed ? 'Really delete?' : 'Delete'}
+      </button>
+    </div>
+  );
+}
+
 export type TableProps = {
   rows: Application[];
   /** Matching the current filter. */
@@ -54,6 +112,7 @@ export type TableProps = {
   onDateCommit: (id: string, v: string) => void;
   onStatusChange: (id: string, status: Status) => void;
   onNotesChange: (id: string, notes: string) => void;
+  onDelete: (id: string) => void;
   onPickSkill: (skill: string) => void;
   pageInfo: string;
   /** ⌘ or Ctrl, for the empty-state hint. */
@@ -403,6 +462,11 @@ export function ApplicationsTable(p: TableProps) {
                                 )}
                               </div>
                             </div>
+
+                            <DeleteControl
+                              label={`${r.company} · ${r.position}`}
+                              onDelete={() => p.onDelete(r.id)}
+                            />
                           </div>
                         </td>
                       </tr>

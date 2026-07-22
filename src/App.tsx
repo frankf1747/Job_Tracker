@@ -36,7 +36,12 @@ import { cityAgg, normalizeLoc, type CityAggregate } from './lib/locations';
 import { looksLikePosting, parsePosting, type Draft } from './lib/parsePosting';
 import { DAY, MONTHS, reachedFor, type Application, type Status } from './lib/schema';
 import { makeSeedRows } from './data/seed';
-import { createApplication, listApplications, updateApplication } from './data/applications';
+import {
+  createApplication,
+  deleteApplication,
+  listApplications,
+  updateApplication,
+} from './data/applications';
 import { loadResumes, saveResumes, type Resume } from './data/resumeStore';
 import { supabase } from './lib/supabase';
 
@@ -283,6 +288,43 @@ export default function App({ source }: { source: DataSource }) {
   const onStatusChange = useCallback(
     (id: string, status: Status) => updateRow(id, { status, reached: reachedFor(status) }),
     [updateRow],
+  );
+
+  /**
+   * Remove a row optimistically, restoring it to its original position if the
+   * delete is rejected — appending it would silently reorder ties in the table.
+   */
+  const deleteRow = useCallback(
+    (id: string) => {
+      const index = rowsRef.current.findIndex((r) => r.id === id);
+      if (index < 0) return;
+      const previous = rowsRef.current[index];
+
+      setRows((rs) => rs.filter((r) => r.id !== id));
+      setExpanded((e) => {
+        const next = { ...e };
+        delete next[id];
+        return next;
+      });
+
+      const describe = `${previous.company} · ${previous.position}`;
+      if (!userId) {
+        showToast(`Deleted — ${describe}`, 'success');
+        return;
+      }
+
+      deleteApplication(id)
+        .then(() => showToast(`Deleted — ${describe}`, 'success'))
+        .catch(() => {
+          setRows((rs) => {
+            const next = rs.slice();
+            next.splice(Math.min(index, next.length), 0, previous);
+            return next;
+          });
+          showToast(`Couldn't delete ${previous.company}. It's still here.`, 'error');
+        });
+    },
+    [userId, showToast],
   );
 
   /**
@@ -605,6 +647,7 @@ export default function App({ source }: { source: DataSource }) {
           onDateCommit={onDateCommit}
           onStatusChange={onStatusChange}
           onNotesChange={onNotesChange}
+          onDelete={deleteRow}
           onPickSkill={(s) => toggleFilter('skills', s)}
           pageInfo={
             sorted.length
