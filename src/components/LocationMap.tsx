@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { geoConicConformal, geoPath } from 'd3-geo';
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import naGeo from '../assets/north-america-110m.json';
+import { useElementWidth } from '../hooks/useElementWidth';
 import type { CityAggregate } from '../lib/locations';
 import { SANS, bareButton } from './styles';
 
@@ -16,24 +17,6 @@ const COUNTRY_IDS: Record<MapScope, string[]> = {
 const MAP_HEIGHT = 230;
 
 const FEATURES = (naGeo as FeatureCollection<Geometry>).features;
-
-/** Track the rendered width so the projection can be fitted to it. */
-function useElementWidth() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(300);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
-      setWidth(Math.max(240, entry.contentRect.width || 300));
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  return [ref, width] as const;
-}
 
 function ScopeButton({
   label,
@@ -83,7 +66,7 @@ export function LocationMap({
   onClearPick: () => void;
   caption: string;
 }) {
-  const [ref, width] = useElementWidth();
+  const [ref, width] = useElementWidth(240);
 
   const { outlines, pins } = useMemo(() => {
     const ids = COUNTRY_IDS[scope];

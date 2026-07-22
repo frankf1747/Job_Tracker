@@ -134,9 +134,17 @@ export function ApplicationsTable(p: TableProps) {
                 return (
                   <Fragment key={r.id}>
                     <tr
+                      onClick={(e) => {
+                        // The row is a click target for expanding, but it is full of
+                        // controls with their own jobs — don't steal their clicks.
+                        if ((e.target as HTMLElement).closest('input, select, a, button')) return;
+                        p.onToggleExpand(r.id);
+                      }}
+                      title="Click for skills & details"
                       style={{
                         borderBottom: '1px solid #e7e2d5',
                         background: idx % 2 === 1 ? '#f1ede4' : 'transparent',
+                        cursor: 'pointer',
                       }}
                     >
                       <td style={{ padding: '8px 0 8px 12px', verticalAlign: 'middle' }}>

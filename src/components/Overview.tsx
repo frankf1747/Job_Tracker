@@ -1,4 +1,37 @@
+import { useElementWidth } from '../hooks/useElementWidth';
+import { pipsToDraw } from '../lib/derive';
 import { SERIF, SERIF_JP, section, sectionHeading, sectionHeadingRow } from './styles';
+
+const PIP_SIZE = 8;
+const PIP_GAP = 3;
+/** The strip shares a 120px-tall panel with the countdown, so it gets three rows. */
+const PIP_ROWS = 3;
+
+/**
+ * One tick per elapsed day, wrapping into rows and capped at whatever fits.
+ *
+ * The cap is computed from the measured width rather than hardcoded, so the
+ * strip never pushes the panel taller than the column beside it.
+ */
+function PipStrip({ days }: { days: number }) {
+  const [ref, width] = useElementWidth(0, 0);
+  const shown = pipsToDraw(days, width, PIP_SIZE, PIP_GAP, PIP_ROWS);
+
+  return (
+    <div
+      ref={ref}
+      style={{ display: 'flex', flexWrap: 'wrap', gap: PIP_GAP, marginTop: 'auto' }}
+      title={`${days} day${days === 1 ? '' : 's'} into the cycle`}
+    >
+      {Array.from({ length: shown }, (_, i) => (
+        <span
+          key={i}
+          style={{ width: PIP_SIZE, height: PIP_SIZE, borderRadius: 2, background: '#b6cadb' }}
+        />
+      ))}
+    </div>
+  );
+}
 
 const statLabel = {
   fontSize: 10.5,
@@ -139,17 +172,7 @@ export function Overview({
             </span>
           </div>
 
-          <div
-            style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 'auto' }}
-            title="one tick per day since you started"
-          >
-            {Array.from({ length: pipCount }, (_, i) => (
-              <span
-                key={i}
-                style={{ width: 8, height: 8, borderRadius: 2, background: '#b6cadb' }}
-              />
-            ))}
-          </div>
+          <PipStrip days={pipCount} />
         </div>
       </div>
     </section>

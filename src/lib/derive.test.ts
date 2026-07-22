@@ -7,6 +7,7 @@ import {
   isoOf,
   parseMMDD,
   pieArcs,
+  pipsToDraw,
   sortRows,
 } from './derive';
 import { normalizeLoc } from './locations';
@@ -261,6 +262,41 @@ describe('parseMMDD', () => {
     expect(parseMMDD('1345', '2026-01-01')).toBeNull();
     expect(parseMMDD('0299', '2026-01-01')).toBeNull();
     expect(parseMMDD('0700', '2026-01-01')).toBeNull();
+  });
+});
+
+describe('pipsToDraw', () => {
+  // The real strip: 8px ticks, 3px gaps, three rows.
+  const draw = (days: number, width: number) => pipsToDraw(days, width, 8, 3, 3);
+
+  test('draws one tick per day while they fit', () => {
+    expect(draw(1, 479)).toBe(1);
+    expect(draw(30, 479)).toBe(30);
+  });
+
+  test('caps at three rows rather than growing the panel', () => {
+    // 479px fits 43 per row, so 129 across three rows.
+    expect(draw(500, 479)).toBe(129);
+    expect(draw(129, 479)).toBe(129);
+    expect(draw(130, 479)).toBe(129);
+  });
+
+  test('a narrower column caps sooner', () => {
+    expect(draw(500, 240)).toBeLessThan(draw(500, 479));
+  });
+
+  test('draws nothing until the width is measured', () => {
+    expect(draw(50, 0)).toBe(0);
+    expect(draw(50, -1)).toBe(0);
+  });
+
+  test('always allows at least one per row, however narrow', () => {
+    expect(draw(50, 4)).toBe(3);
+  });
+
+  test('never returns a negative count', () => {
+    expect(draw(0, 479)).toBe(0);
+    expect(draw(-5, 479)).toBe(0);
   });
 });
 

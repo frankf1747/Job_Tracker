@@ -41,6 +41,9 @@ const PAGE_SIZE = 12;
 const DEADLINE_MONTH = 11;
 const DEADLINE_DAY = 11;
 
+/** Day one of the cycle — the countdown strip draws a tick per day from here. */
+const CYCLE_START = new Date(2026, 6, 22);
+
 /** How long the parsing overlay lingers, so the transition doesn't flash. */
 const PARSE_MIN_MS = 1050;
 
@@ -54,7 +57,6 @@ export default function App() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [dateEdit, setDateEdit] = useState<Record<string, string>>({});
   const [mapScope, setMapScope] = useState<MapScope>('all');
-  const [mapPick, setMapPick] = useState<{ key: string; count: number } | null>(null);
   const [parsing, setParsing] = useState(false);
   const [review, setReview] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -241,18 +243,29 @@ export default function App() {
   );
   const cities = useMemo(() => cityAgg(visible), [visible]);
 
+  // The map's selected-city banner is derived from the filter rather than held
+  // as its own state, so dismissing it and clearing the filter cannot disagree.
+  const picked = useMemo(() => {
+    if (filter.locations.length !== 1) return null;
+    const key = filter.locations[0];
+    return { key, count: cities.find((c) => c.key === key)?.count ?? 0 };
+  }, [filter.locations, cities]);
+
+  const clearPickedCity = useCallback(() => {
+    setFilter((f) => ({ ...f, locations: [] }));
+    setMapScope('all');
+    setPage(1);
+  }, []);
+
   // Countdown to the cycle deadline, rolling to next year once it passes.
   const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   let target = new Date(now.getFullYear(), DEADLINE_MONTH, DEADLINE_DAY);
   if (target < midnight) target = new Date(now.getFullYear() + 1, DEADLINE_MONTH, DEADLINE_DAY);
   const cdDays = Math.max(0, Math.round((target.getTime() - midnight.getTime()) / DAY));
 
-  // One tick per day since the first application, so the strip grows as you go.
-  const earliestTs = rows.length ? Math.min(...rows.map((r) => r.appliedTs)) : midnight.getTime();
-  const pipCount = Math.min(
-    140,
-    Math.max(1, Math.floor((midnight.getTime() - earliestTs) / DAY) + 1),
-  );
+  // One tick per day of the cycle, counting the start day itself. PipStrip caps
+  // how many it draws to whatever fits its row.
+  const pipCount = Math.max(1, Math.floor((midnight.getTime() - CYCLE_START.getTime()) / DAY) + 1);
 
   const chips: Chip[] = [
     ...filter.skills.map((s) => ({
@@ -290,10 +303,8 @@ export default function App() {
   const isMac =
     typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent || '');
 
-  const onPickCity = (c: CityAggregate) => {
-    setMapPick({ key: c.key, count: c.count });
-    toggleFilter('locations', c.key);
-  };
+  // Clicking a pin filters to that city; clicking it again clears the filter.
+  const onPickCity = (c: CityAggregate) => toggleFilter('locations', c.key);
 
   return (
     <div
@@ -433,8 +444,8 @@ export default function App() {
               onScope={setMapScope}
               selectedLocations={filter.locations}
               onPick={onPickCity}
-              picked={mapPick}
-              onClearPick={() => setMapPick(null)}
+              picked={picked}
+              onClearPick={clearPickedCity}
               caption={mapCaption(visible)}
             />
           </div>

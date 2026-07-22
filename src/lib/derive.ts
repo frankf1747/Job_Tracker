@@ -146,6 +146,25 @@ export function pieArcs(
   return out;
 }
 
+/**
+ * How many countdown ticks to draw so the strip never grows past `rows` rows.
+ *
+ * Derived from the measured width rather than a fixed cap, so a narrow column
+ * clips sooner instead of pushing the panel taller than the one beside it.
+ * Returns 0 before the width is known, so nothing flashes at the wrong size.
+ */
+export function pipsToDraw(
+  days: number,
+  width: number,
+  size: number,
+  gap: number,
+  rows: number,
+): number {
+  if (width <= 0) return 0;
+  const perRow = Math.max(1, Math.floor((width + gap) / (size + gap)));
+  return Math.max(0, Math.min(days, perRow * rows));
+}
+
 export function isoOf(d: Date): string {
   return (
     d.getFullYear() +

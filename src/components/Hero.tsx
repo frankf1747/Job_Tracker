@@ -58,13 +58,15 @@ export function Hero({ pasteKey }: { pasteKey: string }) {
         backgroundPosition: 'center 37%',
       }}
     >
-      {/* Fades the photo into the page background so the content has somewhere to land. */}
+      {/* Fades the photo into the page background so the content has somewhere to
+          land. The lower stops stay heavy enough to keep the headline legible —
+          the photo is brightest in its upper two-thirds. */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
           background:
-            'linear-gradient(180deg,rgba(247,245,240,.28) 0%,rgba(247,245,240,.04) 42%,rgba(247,245,240,.55) 80%,#f7f5f0 100%)',
+            'linear-gradient(180deg,rgba(247,245,240,.14) 0%,rgba(247,245,240,0) 45%,rgba(247,245,240,.42) 82%,#f7f5f0 100%)',
         }}
       />
       <svg
