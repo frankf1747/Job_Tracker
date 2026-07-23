@@ -48,26 +48,26 @@ table {
    a design-tool-only `style-focus` attribute, which has no browser equivalent —
    these are real CSS rules doing the same thing. */
 .date-cell {
-  /* Fits the box to the text so the logged time sits flush after the date
-     rather than after a run of empty input. A fixed width can only suit one
-     value: "Sep 30" is 5px wider than "Jul 22", and typing "0721" is narrower
-     than both. min-width keeps it from collapsing mid-edit. */
-  field-sizing: content;
-  min-width: 30px;
+  /* Fixed, and sized to the widest date ("May 22"), so the logged time beside
+     it lands on the same x in every row. Sizing to content instead would sit
+     the time flush after the date, but month abbreviations differ by up to 6px
+     in this proportional font — tabular numerals even out the digits, not the
+     letters — so the time column would visibly wander down the table. A
+     straight column reads better than a flush gap. */
+  width: 47px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 5px;
   padding: 5px 1px 5px 6px;
+  /* Cancels this input's own border and padding so its TEXT lines up with the
+     column header and with the plain-text columns either side. Without it the
+     date sits 7px right of everything else, since every other cell puts text
+     straight against the td padding. The focus ring still needs the padding,
+     so it is pulled back out here rather than removed. */
+  margin-left: -7px;
   font-size: 11px;
   color: #5f6a75;
   font-family: 'Archivo', sans-serif;
-}
-
-/* Widest value it holds, for browsers without field-sizing. */
-@supports not (field-sizing: content) {
-  .date-cell {
-    width: 47px;
-  }
 }
 .date-cell:focus {
   border-color: #c3d0da;

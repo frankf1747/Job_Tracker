@@ -71,7 +71,16 @@ export function sortRows(rows: Application[], sortKey: SortKey, sortDir: SortDir
   return rows.slice().sort((a, b) => {
     const x = val(a);
     const y = val(b);
-    return x < y ? -1 * dir : x > y ? 1 * dir : 0;
+    if (x < y) return -1 * dir;
+    if (x > y) return 1 * dir;
+
+    // Ties fall back to when the row was logged, which is what makes the sort
+    // arrow do anything at all on a day's worth of applications: `applied` is a
+    // date at midnight, so every row added the same day compares equal and the
+    // list would never reorder. Same direction as the primary key, so a descending
+    // sort puts the most recently logged first.
+    if (a.createdAt !== b.createdAt) return (a.createdAt - b.createdAt) * dir;
+    return 0;
   });
 }
 

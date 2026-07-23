@@ -30,9 +30,13 @@ const truncate: CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
+/**
+ * "Jul 22", with the day zero-padded so single-digit days line up under
+ * double-digit ones. parseMMDD reads the padded form back unchanged.
+ */
 function shortDate(iso: string): string {
   const d = new Date(iso + 'T00:00');
-  return MONTHS[d.getMonth()] + ' ' + d.getDate();
+  return MONTHS[d.getMonth()] + ' ' + String(d.getDate()).padStart(2, '0');
 }
 
 /**
@@ -320,7 +324,7 @@ export function ApplicationsTable(p: TableProps) {
                                 fontStyle: logged.sameDay ? 'normal' : 'italic',
                               }}
                             >
-                              , {logged.time}
+                              {logged.time}
                             </span>
                           )}
                         </span>

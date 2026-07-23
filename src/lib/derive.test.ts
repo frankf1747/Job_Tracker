@@ -124,6 +124,39 @@ describe('hasFilter', () => {
 });
 
 describe('sortRows', () => {
+  test('orders same-day rows by when they were logged', () => {
+    // Every application added today shares one appliedTs, so comparing only
+    // that returns 0 for every pair and the arrow appears to do nothing.
+    const rows = [
+      app({ id: 'noon', applied: '2026-07-22', createdAt: Date.parse('2026-07-22T12:00') }),
+      app({ id: 'morning', applied: '2026-07-22', createdAt: Date.parse('2026-07-22T09:00') }),
+      app({ id: 'night', applied: '2026-07-22', createdAt: Date.parse('2026-07-22T22:00') }),
+    ];
+    expect(sortRows(rows, 'applied', 'asc').map((r) => r.id)).toEqual(['morning', 'noon', 'night']);
+    expect(sortRows(rows, 'applied', 'desc').map((r) => r.id)).toEqual([
+      'night',
+      'noon',
+      'morning',
+    ]);
+  });
+
+  test('the logged-time tiebreak applies to every column, not just applied', () => {
+    const rows = [
+      app({ id: 'later', company: 'Acme', createdAt: 2000 }),
+      app({ id: 'earlier', company: 'Acme', createdAt: 1000 }),
+    ];
+    expect(sortRows(rows, 'company', 'asc').map((r) => r.id)).toEqual(['earlier', 'later']);
+    expect(sortRows(rows, 'company', 'desc').map((r) => r.id)).toEqual(['later', 'earlier']);
+  });
+
+  test('the date still wins over the logged time', () => {
+    const rows = [
+      app({ id: 'older-day', applied: '2026-07-20', createdAt: Date.parse('2026-07-22T23:00') }),
+      app({ id: 'newer-day', applied: '2026-07-22', createdAt: Date.parse('2026-07-22T01:00') }),
+    ];
+    expect(sortRows(rows, 'applied', 'asc').map((r) => r.id)).toEqual(['older-day', 'newer-day']);
+  });
+
   const rows = [
     app({ id: 'b', company: 'Notion', applied: '2026-07-05', status: 'Offer' }),
     app({ id: 'a', company: 'Acme', applied: '2026-07-10', status: 'Submitted' }),
