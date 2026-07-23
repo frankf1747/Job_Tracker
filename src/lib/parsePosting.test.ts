@@ -6,6 +6,7 @@ import {
   guessLevel,
   looksLikePosting,
   parsePostingLocal,
+  stripLogoNoise,
   stripMarkdownLinks,
 } from './parsePosting';
 import { normalizeLoc } from './locations';
@@ -326,5 +327,51 @@ describe('draftFromApplication', () => {
     expect(d).not.toHaveProperty('notes');
     expect(d).not.toHaveProperty('appliedTs');
     expect(d).not.toHaveProperty('id');
+  });
+});
+
+describe('stripLogoNoise', () => {
+  test('pulls the name out of the logo alt text', () => {
+    expect(stripLogoNoise('Company logo for, AmeriPharma')).toBe('AmeriPharma');
+    expect(stripLogoNoise('Logo for: Acme Health')).toBe('Acme Health');
+    expect(stripLogoNoise('AmeriPharma logo')).toBe('AmeriPharma');
+  });
+
+  test('empties a line that is only alt text, so the real name is used instead', () => {
+    expect(stripLogoNoise('Company logo')).toBe('');
+    expect(stripLogoNoise('logo')).toBe('');
+  });
+
+  test('leaves ordinary company names alone', () => {
+    expect(stripLogoNoise('Stripe')).toBe('Stripe');
+    // "logo" only counts at the very start or the very end.
+    expect(stripLogoNoise('Logo Design Inc')).toBe('Logo Design Inc');
+  });
+});
+
+describe('LinkedIn logo alt text before the company name', () => {
+  const body =
+    '\nMarketing Analytics Specialist\nLaguna Hills, CA\nWe need SQL and Python for this healthcare analytics role with good benefits.';
+
+  test('strips a name glued onto the alt text', () => {
+    expect(parse('Company logo for, AmeriPharma' + body).company).toBe('AmeriPharma');
+  });
+
+  test('strips a trailing "logo"', () => {
+    expect(parse('AmeriPharma logo' + body).company).toBe('AmeriPharma');
+  });
+
+  test('skips a bare alt-text line and takes the name below it', () => {
+    expect(parse('Company logo\nAmeriPharma' + body).company).toBe('AmeriPharma');
+  });
+
+  test('still finds a known company sitting under the alt text', () => {
+    expect(parse('Company logo\nStripe' + body).company).toBe('Stripe');
+  });
+
+  test('does not disturb the position or the rest of the parse', () => {
+    const d = parse('Company logo for, AmeriPharma' + body);
+    expect(d.position).toBe('Marketing Analytics Specialist');
+    expect(d.location).toBe('Laguna Hills, CA');
   });
 });

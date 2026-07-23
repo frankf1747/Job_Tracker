@@ -209,6 +209,29 @@ function looksLikeLocation(line: string) {
   return LOCATION_LINE.test(line) || /\bremote\b/i.test(line);
 }
 
+/** A line that is only the logo's alt text, carrying no company name. */
+const LOGO_ONLY = /^(?:company\s+)?logo$/i;
+/** "Company logo for, Acme" — the name is glued onto the alt text. */
+const LOGO_FOR = /^(?:company\s+)?logo\s+for[,:]?\s*/i;
+/** "Acme logo" — the name comes first. */
+const LOGO_SUFFIX = /\s+logo$/i;
+
+/**
+ * Remove the logo alt text LinkedIn pastes above every company name.
+ *
+ * Copying a posting brings the image's alt text along as a line of its own,
+ * in several shapes: sometimes it is only "Company logo", sometimes the name is
+ * glued to it as "Company logo for, Acme". Returns the bare name, or an empty
+ * string when the line was nothing but alt text and the real name follows.
+ */
+export function stripLogoNoise(line: string): string {
+  const t = line.trim();
+  if (LOGO_ONLY.test(t)) return '';
+  if (LOGO_FOR.test(t)) return t.replace(LOGO_FOR, '').trim();
+  if (LOGO_SUFFIX.test(t)) return t.replace(LOGO_SUFFIX, '').trim();
+  return t;
+}
+
 export function guessCompany(lines: string[], text: string): string {
   // An explicit label always wins.
   const labelled = text.match(/^\s*company\s*[:-]\s*(.{2,40})$/im);
@@ -216,7 +239,13 @@ export function guessCompany(lines: string[], text: string): string {
 
   // A name we recognise, but only near the top. Scanning the whole document is
   // what made "proficiency in Power BI, Databricks" outrank the real employer.
-  const head = lines.slice(0, HEAD_LINES);
+  // Sliced wide then trimmed back, so dropping pure alt-text lines doesn't
+  // shorten how far into the posting we actually look.
+  const head = lines
+    .slice(0, HEAD_LINES + 2)
+    .map(stripLogoNoise)
+    .filter(Boolean)
+    .slice(0, HEAD_LINES);
   const known = KNOWN_COMPANIES.find((n) => head.some((l) => wordRe(n).test(l)));
   if (known) return known;
 

@@ -35,6 +35,24 @@ function shortDate(iso: string): string {
 }
 
 /**
+ * The 24-hour clock time a row was logged, e.g. "15:28".
+ *
+ * Only when the row was logged on the applied date itself. The applied date is
+ * editable and createdAt is not, so on a backdated row the two describe
+ * different days — printing them together would read as a time on a day it
+ * never happened.
+ */
+function loggedTime(createdAt: number, appliedIso: string): string {
+  if (!Number.isFinite(createdAt)) return '';
+  const d = new Date(createdAt);
+  const sameDay =
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` ===
+    appliedIso;
+  if (!sameDay) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/**
  * When the row was logged, e.g. "Jul 22, 9:41 PM". Distinct from the applied
  * date above it, which the user sets; this is stamped on save and feeds the
  * by-hour chart.
@@ -209,6 +227,7 @@ export function ApplicationsTable(p: TableProps) {
                 const isOpen = !!p.expanded[r.id];
                 const applied = shortDate(r.applied);
                 const dateValue = p.dateEdit[r.id] ?? applied;
+                const loggedAt = loggedTime(r.createdAt, r.applied);
 
                 return (
                   <Fragment key={r.id}>
@@ -299,6 +318,14 @@ export function ApplicationsTable(p: TableProps) {
                           title="Type e.g. 0721 → Jul 21"
                           aria-label={`Applied date for ${r.company}`}
                         />
+                        {loggedAt && (
+                          <span
+                            title="Time this application was logged"
+                            style={{ fontSize: 11, color: '#9aa3ad', marginLeft: 1 }}
+                          >
+                            {loggedAt}
+                          </span>
+                        )}
                       </td>
 
                       <td style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>
