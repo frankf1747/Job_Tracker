@@ -218,3 +218,73 @@ export function mapCaption(rows: Application[]): string {
   const ca = rows.filter((r) => r.loc.country === 'CA').length;
   return `${mapped} mapped · ${remote} remote · ${unk} unspec · ${ca} in Canada`;
 }
+
+export type HourBar = {
+  /** 0–23, local time. */
+  hour: number;
+  count: number;
+  /** Height as a percentage of the busiest hour, for the bar chart. */
+  h: number;
+  /** Only under the axis ticks, so 24 bars don't turn into a wall of text. */
+  label: string;
+  peak: boolean;
+};
+
+export type HourStats = {
+  bars: HourBar[];
+  /** Null until there is anything to summarise. */
+  peakHour: number | null;
+  peakCount: number;
+  total: number;
+  /** "Most often around 9pm", or an invitation to keep going. */
+  caption: string;
+};
+
+/** 12-hour clock, the way the caption reads it aloud: 0 -> 12am, 13 -> 1pm. */
+export function hourLabel(hour: number): string {
+  const suffix = hour < 12 ? 'am' : 'pm';
+  const h = hour % 12 === 0 ? 12 : hour % 12;
+  return `${h}${suffix}`;
+}
+
+/**
+ * When applications actually get added, by hour of the local day.
+ *
+ * Reads `createdAt` rather than `applied`: the applied date is user-editable
+ * and carries no time, while createdAt is stamped by the database when the row
+ * is saved. That makes this a record of when the work happened, not of when the
+ * user says it happened.
+ */
+export function hourHistogram(rows: Application[]): HourStats {
+  const counts = new Array(24).fill(0) as number[];
+  let total = 0;
+
+  for (const r of rows) {
+    if (!Number.isFinite(r.createdAt)) continue;
+    const h = new Date(r.createdAt).getHours();
+    if (h >= 0 && h < 24) {
+      counts[h]++;
+      total++;
+    }
+  }
+
+  const peakCount = Math.max(0, ...counts);
+  // A tie resolves to the earlier hour, and no data leaves no peak at all
+  // rather than falsely crowning midnight.
+  const peakHour = peakCount > 0 ? counts.indexOf(peakCount) : null;
+
+  const bars = counts.map((count, hour) => ({
+    hour,
+    count,
+    h: peakCount > 0 ? Math.round((count / peakCount) * 100) : 0,
+    label: hour % 6 === 0 ? hourLabel(hour) : '',
+    peak: peakCount > 0 && count === peakCount,
+  }));
+
+  const caption =
+    peakHour == null
+      ? 'No applications logged yet.'
+      : `Most often around ${hourLabel(peakHour)} — ${peakCount} of ${total}`;
+
+  return { bars, peakHour, peakCount, total, caption };
+}

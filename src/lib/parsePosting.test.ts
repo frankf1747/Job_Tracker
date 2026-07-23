@@ -290,6 +290,7 @@ describe('draftFromApplication', () => {
     loc: normalizeLoc('San Francisco, CA'),
     applied: '2026-07-10',
     appliedTs: Date.parse('2026-07-10T00:00'),
+    createdAt: Date.parse('2026-07-10T09:30'),
     resume: 'Analytics v3',
     notes: 'referral',
     sourceUrl: 'https://stripe.com/jobs/1',

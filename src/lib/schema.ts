@@ -151,6 +151,13 @@ export type Application = {
   /** ISO date, YYYY-MM-DD. */
   applied: string;
   appliedTs: number;
+  /**
+   * When the row was added to the tracker, as epoch ms — distinct from
+   * `applied`, which is the date the user says they applied and can edit.
+   * This one is set by the database and never edited, which is what makes it
+   * usable for "what hour of the day do I actually get applications done".
+   */
+  createdAt: number;
   resume: string;
   notes: string;
   sourceUrl: string;

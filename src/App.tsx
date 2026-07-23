@@ -3,6 +3,7 @@ import { ApplicationsTable } from './components/ApplicationsTable';
 import { Donut } from './components/Donut';
 import { FilterStrip, type Chip } from './components/FilterStrip';
 import { Grain, Hero, VerticalMotto } from './components/Hero';
+import { HourChart } from './components/HourChart';
 import { LocationMap, type MapScope } from './components/LocationMap';
 import { Overview } from './components/Overview';
 import { ParsingOverlay } from './components/ParsingOverlay';
@@ -16,6 +17,7 @@ import {
   STAGE_DEFS,
   exitStats,
   funnelStages,
+  hourHistogram,
   industryArcs,
   mapCaption,
   momentum,
@@ -451,7 +453,8 @@ export default function App({ source }: { source: DataSource }) {
       } else {
         const saved = userId
           ? await createApplication({ ...fields, notes: '' }, userId)
-          : { ...fields, notes: '', id: crypto.randomUUID(), ...derived };
+          : // Sample mode has no database to stamp the row, so it stands in.
+            { ...fields, notes: '', id: crypto.randomUUID(), createdAt: Date.now(), ...derived };
         setRows((rs) => [saved, ...rs]);
         closeReview();
         setPage(1);
@@ -485,6 +488,9 @@ export default function App({ source }: { source: DataSource }) {
     [visible, filter.industries],
   );
   const cities = useMemo(() => cityAgg(visible), [visible]);
+  // Follows the filters, like the rest of Breakdowns: narrowing to Offer then
+  // shows which hours actually produced offers.
+  const hours = useMemo(() => hourHistogram(visible), [visible]);
 
   // The map's selected-city banner is derived from the filter rather than held
   // as its own state, so dismissing it and clearing the filter cannot disagree.
@@ -728,6 +734,12 @@ export default function App({ source }: { source: DataSource }) {
               onClearPick={clearPickedCity}
               caption={mapCaption(visible)}
             />
+          </div>
+
+          {/* Full width: 24 bars need the room, and unlike the donuts this one
+              reads left-to-right as a day. */}
+          <div style={{ marginTop: 12 }}>
+            <HourChart stats={hours} />
           </div>
         </section>
       </div>

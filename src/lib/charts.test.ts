@@ -1,5 +1,14 @@
 import { describe, expect, test } from 'vitest';
-import { exitStats, funnelStages, industryArcs, mapCaption, momentum, skillArcs } from './charts';
+import {
+  exitStats,
+  funnelStages,
+  hourHistogram,
+  hourLabel,
+  industryArcs,
+  mapCaption,
+  momentum,
+  skillArcs,
+} from './charts';
 import { EMPTY_FILTER, derive } from './derive';
 import { normalizeLoc } from './locations';
 import type { Application, Status } from './schema';
@@ -28,6 +37,7 @@ function app(over: Partial<Application> = {}): Application {
     loc: normalizeLoc(location),
     applied,
     appliedTs: Date.parse(applied + 'T00:00'),
+    createdAt: over.createdAt ?? Date.parse(applied + 'T09:00'),
   };
 }
 
@@ -218,5 +228,68 @@ describe('mapCaption', () => {
 
   test('an empty list reads as all zeroes', () => {
     expect(mapCaption([])).toBe('0 mapped · 0 remote · 0 unspec · 0 in Canada');
+  });
+});
+
+describe('hourLabel', () => {
+  test('reads hours the way a person says them', () => {
+    expect(hourLabel(0)).toBe('12am');
+    expect(hourLabel(9)).toBe('9am');
+    expect(hourLabel(12)).toBe('12pm');
+    expect(hourLabel(13)).toBe('1pm');
+    expect(hourLabel(23)).toBe('11pm');
+  });
+});
+
+describe('hourHistogram', () => {
+  /** A row added at a given local hour, whatever the applied date says. */
+  const at = (hour: number) => app({ createdAt: new Date(2026, 6, 20, hour, 30).getTime() });
+
+  test('counts by local hour of day', () => {
+    const s = hourHistogram([at(9), at(9), at(21)]);
+    expect(s.bars[9].count).toBe(2);
+    expect(s.bars[21].count).toBe(1);
+    expect(s.total).toBe(3);
+  });
+
+  test('always returns 24 bars, so the axis never shifts', () => {
+    expect(hourHistogram([at(3)]).bars).toHaveLength(24);
+    expect(hourHistogram([]).bars).toHaveLength(24);
+  });
+
+  test('names the busiest hour and scales bars against it', () => {
+    const s = hourHistogram([at(22), at(22), at(22), at(8)]);
+    expect(s.peakHour).toBe(22);
+    expect(s.peakCount).toBe(3);
+    expect(s.bars[22].h).toBe(100);
+    expect(s.bars[8].h).toBe(33);
+    expect(s.caption).toBe('Most often around 10pm — 3 of 4');
+  });
+
+  test('marks every hour tied for the peak, but reports the earliest', () => {
+    const s = hourHistogram([at(7), at(19)]);
+    expect(s.peakHour).toBe(7);
+    expect(s.bars.filter((b) => b.peak).map((b) => b.hour)).toEqual([7, 19]);
+  });
+
+  test('no rows means no peak, rather than crowning midnight', () => {
+    const s = hourHistogram([]);
+    expect(s.peakHour).toBeNull();
+    expect(s.peakCount).toBe(0);
+    expect(s.total).toBe(0);
+    expect(s.caption).toBe('No applications logged yet.');
+    expect(s.bars.every((b) => b.h === 0 && !b.peak)).toBe(true);
+  });
+
+  test('skips rows with no usable timestamp instead of counting them as midnight', () => {
+    const s = hourHistogram([at(14), app({ createdAt: NaN })]);
+    expect(s.total).toBe(1);
+    expect(s.bars[0].count).toBe(0);
+    expect(s.peakHour).toBe(14);
+  });
+
+  test('labels only the six-hour ticks, keeping 24 bars readable', () => {
+    const labelled = hourHistogram([at(1)]).bars.filter((b) => b.label);
+    expect(labelled.map((b) => b.label)).toEqual(['12am', '6am', '12pm', '6pm']);
   });
 });

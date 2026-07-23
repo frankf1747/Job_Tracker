@@ -32,11 +32,12 @@ type Row = {
   notes: string;
   source_url: string;
   skills: string[];
+  created_at: string;
 };
 
 /** Columns selected everywhere, so list and write paths cannot drift apart. */
 const COLUMNS =
-  'id,company,position,industry,level,employment_type,salary,status,reached,location_raw,lat,lng,applied_on,resume,notes,source_url,skills';
+  'id,company,position,industry,level,employment_type,salary,status,reached,location_raw,lat,lng,applied_on,resume,notes,source_url,skills,created_at';
 
 export function toApplication(row: Row): Application {
   const loc = normalizeLoc(row.location_raw);
@@ -59,6 +60,9 @@ export function toApplication(row: Row): Application {
         : loc,
     applied: row.applied_on,
     appliedTs: Date.parse(row.applied_on + 'T00:00'),
+    // Written by the database, so it is UTC; Date.parse keeps the instant and
+    // the UI reads local hours off it, which is the "hour of my day" we want.
+    createdAt: row.created_at ? Date.parse(row.created_at) : Date.parse(row.applied_on + 'T00:00'),
     resume: row.resume,
     notes: row.notes,
     sourceUrl: row.source_url,
@@ -101,8 +105,12 @@ export async function listApplications(): Promise<Application[]> {
   return (data as unknown as Row[]).map(toApplication);
 }
 
+/**
+ * `createdAt` is omitted: the database stamps it with `now()` on insert, and
+ * the inserted row is read back, so the client never guesses the time.
+ */
 export async function createApplication(
-  app: Omit<Application, 'id' | 'loc' | 'appliedTs'>,
+  app: Omit<Application, 'id' | 'loc' | 'appliedTs' | 'createdAt'>,
   userId: string,
 ): Promise<Application> {
   const { data, error } = await requireSupabase()

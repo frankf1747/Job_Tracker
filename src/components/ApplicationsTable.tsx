@@ -34,6 +34,20 @@ function shortDate(iso: string): string {
   return MONTHS[d.getMonth()] + ' ' + d.getDate();
 }
 
+/**
+ * When the row was logged, e.g. "Jul 22, 9:41 PM". Distinct from the applied
+ * date above it, which the user sets; this is stamped on save and feeds the
+ * by-hour chart.
+ */
+function addedAt(ts: number): string {
+  if (!Number.isFinite(ts)) return '—';
+  const d = new Date(ts);
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  })}`;
+}
+
 /** How long an armed delete stays armed before reverting. */
 const ARM_MS = 4000;
 
@@ -435,6 +449,10 @@ export function ApplicationsTable(p: TableProps) {
                               <div style={detailCol}>
                                 <span style={detailLabel}>SALARY</span>
                                 <span style={detailValue}>{r.salary || '—'}</span>
+                              </div>
+                              <div style={detailCol}>
+                                <span style={detailLabel}>ADDED</span>
+                                <span style={detailValue}>{addedAt(r.createdAt)}</span>
                               </div>
                               <div style={detailCol}>
                                 <span style={detailLabel}>POSTING</span>

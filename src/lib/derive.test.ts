@@ -36,6 +36,7 @@ function app(over: Partial<Application> = {}): Application {
     loc: normalizeLoc(location),
     applied,
     appliedTs: Date.parse(applied + 'T00:00'),
+    createdAt: over.createdAt ?? Date.parse(applied + 'T09:00'),
   };
 }
 

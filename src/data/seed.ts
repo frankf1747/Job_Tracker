@@ -237,6 +237,25 @@ function messy(key: string): string {
   return city === 'san francisco' ? 'sf' : city;
 }
 
+/**
+ * Relative likelihood of adding an application in each hour, 0–23. Two humps —
+ * late morning and after dinner — with a dead zone overnight, so the sample
+ * by-hour chart shows a shape worth reading rather than uniform noise.
+ */
+const HOUR_WEIGHTS = [
+  1, 0, 0, 0, 0, 1, 2, 5, 9, 16, 22, 24, 18, 12, 14, 17, 15, 12, 10, 16, 23, 26, 19, 8,
+];
+
+function pickHour(r: () => number): number {
+  const total = HOUR_WEIGHTS.reduce((a, b) => a + b, 0);
+  let x = r() * total;
+  for (let h = 0; h < 24; h++) {
+    x -= HOUR_WEIGHTS[h];
+    if (x < 0) return h;
+  }
+  return 23;
+}
+
 export function makeSeedRows(n: number, now: Date): Application[] {
   const r = rng(20260721);
   // Applied dates are whole days. Carrying `now`'s time-of-day would make seed
@@ -301,6 +320,13 @@ export function makeSeedRows(n: number, now: Date): Application[] {
     const slug = co.n.toLowerCase().replace(/[^a-z0-9]+/g, '');
     const id = String(n - i);
 
+    // Sample rows need a plausible time of day, or the by-hour chart is a flat
+    // wall that demonstrates nothing. Weighted toward a late-morning and a
+    // late-evening session, which is roughly how job hunting goes.
+    const hour = pickHour(r);
+    const created = new Date(d);
+    created.setHours(hour, Math.floor(r() * 60), Math.floor(r() * 60), 0);
+
     rows.push({
       id,
       company: co.n,
@@ -316,6 +342,7 @@ export function makeSeedRows(n: number, now: Date): Application[] {
       loc: normalizeLoc(location),
       applied: isoOf(d),
       appliedTs: d.getTime(),
+      createdAt: created.getTime(),
       resume: FAM_RESUME[pos.f],
       notes: pick(NOTES_POOL),
       sourceUrl: r() < 0.7 ? 'https://careers.' + slug + '.com/' + id : '',

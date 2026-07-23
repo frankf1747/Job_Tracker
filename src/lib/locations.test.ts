@@ -73,6 +73,7 @@ function app(location: string, status: Application['status'] = 'Submitted'): App
     loc: normalizeLoc(location),
     applied: '2026-07-01',
     appliedTs: Date.parse('2026-07-01T00:00'),
+    createdAt: Date.parse('2026-07-01T09:30'),
     resume: '',
     notes: '',
     sourceUrl: '',
