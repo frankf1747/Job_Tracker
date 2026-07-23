@@ -48,14 +48,26 @@ table {
    a design-tool-only `style-focus` attribute, which has no browser equivalent —
    these are real CSS rules doing the same thing. */
 .date-cell {
-  width: 64px;
+  /* Fits the box to the text so the logged time sits flush after the date
+     rather than after a run of empty input. A fixed width can only suit one
+     value: "Sep 30" is 5px wider than "Jul 22", and typing "0721" is narrower
+     than both. min-width keeps it from collapsing mid-edit. */
+  field-sizing: content;
+  min-width: 30px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 5px;
-  padding: 5px 6px;
+  padding: 5px 1px 5px 6px;
   font-size: 11px;
   color: #5f6a75;
   font-family: 'Archivo', sans-serif;
+}
+
+/* Widest value it holds, for browsers without field-sizing. */
+@supports not (field-sizing: content) {
+  .date-cell {
+    width: 47px;
+  }
 }
 .date-cell:focus {
   border-color: #c3d0da;

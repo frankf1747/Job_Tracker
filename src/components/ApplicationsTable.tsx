@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState, type CSSProperties } from 'react';
 import type { SortDir, SortKey } from '../lib/derive';
+import { loggedAtOf } from '../lib/loggedAt';
 import { MONTHS, STATUSES, STATUS_META } from '../lib/schema';
 import type { Application, Status } from '../lib/schema';
 import {
@@ -32,24 +33,6 @@ const truncate: CSSProperties = {
 function shortDate(iso: string): string {
   const d = new Date(iso + 'T00:00');
   return MONTHS[d.getMonth()] + ' ' + d.getDate();
-}
-
-/**
- * The 24-hour clock time a row was logged, e.g. "15:28".
- *
- * Only when the row was logged on the applied date itself. The applied date is
- * editable and createdAt is not, so on a backdated row the two describe
- * different days — printing them together would read as a time on a day it
- * never happened.
- */
-function loggedTime(createdAt: number, appliedIso: string): string {
-  if (!Number.isFinite(createdAt)) return '';
-  const d = new Date(createdAt);
-  const sameDay =
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` ===
-    appliedIso;
-  if (!sameDay) return '';
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 /**
@@ -227,7 +210,7 @@ export function ApplicationsTable(p: TableProps) {
                 const isOpen = !!p.expanded[r.id];
                 const applied = shortDate(r.applied);
                 const dateValue = p.dateEdit[r.id] ?? applied;
-                const loggedAt = loggedTime(r.createdAt, r.applied);
+                const logged = loggedAtOf(r.createdAt, r.applied);
 
                 return (
                   <Fragment key={r.id}>
@@ -303,29 +286,44 @@ export function ApplicationsTable(p: TableProps) {
                       </td>
 
                       <td style={{ padding: '6px 8px 6px 14px', whiteSpace: 'nowrap' }}>
-                        <input
-                          className="date-cell"
-                          value={dateValue}
-                          onFocus={() => p.onDateFocus(r.id, applied)}
-                          onChange={(e) => p.onDateInput(r.id, e.target.value)}
-                          onBlur={(e) => p.onDateCommit(r.id, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              e.currentTarget.blur();
-                            }
-                          }}
-                          title="Type e.g. 0721 → Jul 21"
-                          aria-label={`Applied date for ${r.company}`}
-                        />
-                        {loggedAt && (
-                          <span
-                            title="Time this application was logged"
-                            style={{ fontSize: 11, color: '#9aa3ad', marginLeft: 1 }}
-                          >
-                            {loggedAt}
-                          </span>
-                        )}
+                        {/* Baseline-aligned so the time sits on the same line as
+                            the date text inside the input, not the input's box. */}
+                        <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+                          <input
+                            className="date-cell"
+                            value={dateValue}
+                            onFocus={() => p.onDateFocus(r.id, applied)}
+                            onChange={(e) => p.onDateInput(r.id, e.target.value)}
+                            onBlur={(e) => p.onDateCommit(r.id, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                e.currentTarget.blur();
+                              }
+                            }}
+                            title="Type e.g. 0721 → Jul 21"
+                            aria-label={`Applied date for ${r.company}`}
+                          />
+                          {logged && (
+                            <span
+                              title={
+                                logged.sameDay
+                                  ? `Logged at ${logged.time}`
+                                  : `Logged ${logged.full}; the applied date was set to ${applied}`
+                              }
+                              style={{
+                                fontSize: 11,
+                                // Dimmed and italic when it belongs to a different
+                                // day than the applied date, so it never reads as
+                                // that day's time.
+                                color: logged.sameDay ? '#8b939e' : '#c2c8cf',
+                                fontStyle: logged.sameDay ? 'normal' : 'italic',
+                              }}
+                            >
+                              , {logged.time}
+                            </span>
+                          )}
+                        </span>
                       </td>
 
                       <td style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>
