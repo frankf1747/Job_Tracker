@@ -199,16 +199,23 @@ export function MomentumPanel({
         flexDirection: 'column',
       }}
     >
+      {/* Height and margin match the Countdown panel's label row (17 + 10), so
+          the big number lands on the same baseline as the one beside it. The
+          view buttons are taller than a bare label and would otherwise push it
+          13px down. */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          marginBottom: 12,
+          minHeight: 17,
+          marginBottom: 10,
           flexWrap: 'wrap',
         }}
       >
-        <div style={panelLabel}>
+        {/* panelLabel carries its own bottom margin, which the flex row would
+            add to its height. The row spaces itself. */}
+        <div style={{ ...panelLabel, marginBottom: 0 }}>
           {heading} <span style={{ letterSpacing: 0, color: '#b3bbc4' }}>— {sub}</span>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
