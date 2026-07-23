@@ -101,6 +101,52 @@ export type Momentum = {
  * Deliberately computed over *all* rows rather than the filtered set: momentum
  * is about your overall pace, and it should not move when you filter the table.
  */
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/**
+ * Applications per day over the last seven days, including today.
+ *
+ * Buckets on the applied date rather than when the row was logged, matching the
+ * weekly view: backfilling yesterday's application should land on yesterday.
+ */
+export function dailyMomentum(allRows: Application[], now: Date): Momentum {
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const days = new Array(7).fill(0);
+
+  for (const r of allRows) {
+    // Rounded, not floored: clocks change, and a 23- or 25-hour day would
+    // otherwise push a row into the neighbouring bucket.
+    const d = Math.round((midnight - r.appliedTs) / DAY);
+    if (d >= 0 && d < 7) days[d]++;
+  }
+
+  const max = Math.max(1, ...days);
+  const bars = days
+    .map((c, i) => {
+      const date = new Date(midnight - i * DAY);
+      return {
+        h: Math.round((c / max) * 100),
+        fill: i === 0 ? '#41678a' : '#b9cbd9',
+        label: i === 0 ? 'today' : WEEKDAYS[date.getDay()],
+      };
+    })
+    .reverse();
+
+  const today = days[0];
+  const d = today - days[1];
+  return {
+    bars,
+    thisWeek: today,
+    deltaLabel:
+      d > 0
+        ? '\u25b2 ' + d + ' more than yesterday'
+        : d < 0
+          ? '\u25bc ' + Math.abs(d) + ' fewer than yesterday'
+          : '= same as yesterday',
+    deltaColor: d > 0 ? '#3f7292' : d < 0 ? '#b3653f' : '#9aa4ad',
+  };
+}
+
 export function momentum(allRows: Application[], now: Date): Momentum {
   const weeks = new Array(8).fill(0);
   for (const r of allRows) {

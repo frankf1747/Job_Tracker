@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
+import type { Resume } from '../data/resumeStore';
 import type { Draft } from '../lib/parsePosting';
 import { EMPLOYMENT_TYPES, INDUSTRIES, LEVELS, STATUSES } from '../lib/schema';
 import type { Status } from '../lib/schema';
+import { ResumeField, type NewResume } from './ResumeField';
 import { SANS, field, guessInput, guessLabel, input, microLabel } from './styles';
 
 /**
@@ -15,6 +17,7 @@ export function ReviewModal({
   review,
   mode,
   resumes,
+  onCreateResume,
   onPatch,
   onAddSkill,
   onRemoveSkill,
@@ -25,8 +28,10 @@ export function ReviewModal({
   review: Draft;
   /** 'add' after a paste, 'edit' when reopened on an existing row. */
   mode: 'add' | 'edit';
-  /** Labels from the user's resume list, managed in the Resumes panel. */
-  resumes: string[];
+  /** The user's resume list, managed in the Resumes panel. */
+  resumes: Resume[];
+  /** Creates a resume without leaving the modal. Resolves once it is saved. */
+  onCreateResume: (r: NewResume) => Promise<void>;
   onPatch: (patch: Partial<Draft>) => void;
   onAddSkill: () => void;
   onRemoveSkill: (index: number) => void;
@@ -323,25 +328,12 @@ export function ReviewModal({
                 style={{ ...input, padding: '8px 11px' }}
               />
             </label>
-            <label style={field}>
-              <span style={microLabel}>Resume</span>
-              <select
-                value={review.resume}
-                onChange={(e) => onPatch({ resume: e.target.value })}
-                style={input}
-              >
-                {/* A draft can name a resume that has since been renamed or
-                    deleted; keep it selectable so saving never silently
-                    reassigns it. */}
-                {(resumes.includes(review.resume) ? resumes : [review.resume, ...resumes]).map(
-                  (o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ),
-                )}
-              </select>
-            </label>
+            <ResumeField
+              value={review.resume}
+              resumes={resumes}
+              onSelect={(resume) => onPatch({ resume })}
+              onCreate={onCreateResume}
+            />
           </div>
         </div>
 

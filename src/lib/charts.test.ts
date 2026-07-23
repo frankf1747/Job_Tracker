@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  dailyMomentum,
   exitStats,
   funnelStages,
   hourHistogram,
@@ -291,5 +292,55 @@ describe('hourHistogram', () => {
   test('labels only the six-hour ticks, keeping 24 bars readable', () => {
     const labelled = hourHistogram([at(1)]).bars.filter((b) => b.label);
     expect(labelled.map((b) => b.label)).toEqual(['12am', '6am', '12pm', '6pm']);
+  });
+});
+
+describe('dailyMomentum', () => {
+  const NOW = new Date(2026, 6, 22, 14, 0);
+  const on = (iso: string) => app({ applied: iso });
+
+  test('buckets the last seven days, oldest bar first', () => {
+    const d = dailyMomentum(
+      [on('2026-07-22'), on('2026-07-22'), on('2026-07-21'), on('2026-07-16')],
+      NOW,
+    );
+    expect(d.bars).toHaveLength(7);
+    // Reversed for display, so the last bar is today.
+    expect(d.bars[6].label).toBe('today');
+    expect(d.thisWeek).toBe(2);
+  });
+
+  test('ignores anything older than seven days', () => {
+    expect(dailyMomentum([on('2026-07-01')], NOW).thisWeek).toBe(0);
+    expect(dailyMomentum([on('2026-07-15')], NOW).bars.every((b) => b.h === 0)).toBe(true);
+  });
+
+  test('compares today with yesterday', () => {
+    const up = dailyMomentum([on('2026-07-22'), on('2026-07-22'), on('2026-07-21')], NOW);
+    expect(up.deltaLabel).toBe('▲ 1 more than yesterday');
+
+    const down = dailyMomentum([on('2026-07-21'), on('2026-07-21')], NOW);
+    expect(down.deltaLabel).toBe('▼ 2 fewer than yesterday');
+
+    const same = dailyMomentum([on('2026-07-22'), on('2026-07-21')], NOW);
+    expect(same.deltaLabel).toBe('= same as yesterday');
+  });
+
+  test('labels the earlier days by weekday', () => {
+    const d = dailyMomentum([on('2026-07-22')], NOW);
+    // 22 Jul 2026 is a Wednesday, so the bar before it is Tuesday.
+    expect(d.bars[5].label).toBe('Tue');
+  });
+
+  test('scales the tallest bar to full height', () => {
+    const d = dailyMomentum([on('2026-07-22'), on('2026-07-22'), on('2026-07-21')], NOW);
+    expect(d.bars[6].h).toBe(100);
+    expect(d.bars[5].h).toBe(50);
+  });
+
+  test('no applications leaves flat bars rather than dividing by zero', () => {
+    const d = dailyMomentum([], NOW);
+    expect(d.bars.every((b) => b.h === 0)).toBe(true);
+    expect(d.thisWeek).toBe(0);
   });
 });

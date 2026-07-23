@@ -18,6 +18,14 @@ export type Resume = {
   /** Set once a PDF is attached. */
   fileName?: string;
   fileSize?: number;
+  /**
+   * Written for one application and not meant for reuse.
+   *
+   * Kept so the application's record stays complete, but held out of the resume
+   * dropdown — otherwise a year of per-role rewrites buries the two or three
+   * resumes actually picked from a list.
+   */
+  tailored?: boolean;
   updatedAt: string;
 };
 
@@ -120,6 +128,11 @@ export async function exportAll(): Promise<{ resumes: Resume[]; files: Record<st
   return { resumes, files };
 }
 
-export function makeResume(label: string): Resume {
-  return { id: newId(), label, updatedAt: new Date().toISOString() };
+export function makeResume(label: string, tailored = false): Resume {
+  return { id: newId(), label, tailored, updatedAt: new Date().toISOString() };
+}
+
+/** The resumes offered for reuse — everything not written for a single role. */
+export function generalResumes(list: Resume[]): Resume[] {
+  return list.filter((r) => !r.tailored);
 }

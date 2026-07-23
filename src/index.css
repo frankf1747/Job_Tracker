@@ -145,3 +145,20 @@ table {
     opacity: 0;
   }
 }
+
+/* The page column. Padding lives here rather than inline so the media query
+   below can override one edge of it. */
+.page {
+  padding: 0 34px 90px;
+}
+
+/* The tool rail is fixed to the right edge, so it floats over the page rather
+   than taking part in its layout. Above this width the centred 1360px column
+   leaves margin enough for the rail to sit clear of it; below, right-aligned
+   controls — the search field, the momentum view switch — run underneath it.
+   Widening the right padding hands the rail its own lane. */
+@media (max-width: 1463px) {
+  .page {
+    padding-right: 68px;
+  }
+}

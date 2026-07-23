@@ -1,9 +1,9 @@
-import type { ExitStat, FunnelStage, Momentum } from '../lib/charts';
+import type { ExitStat, FunnelStage, HourStats, Momentum } from '../lib/charts';
+import { MomentumPanel } from './MomentumPanel';
 import type { Status } from '../lib/schema';
 import {
   SANS,
   SERIF,
-  SERIF_JP,
   bareButton,
   panelLabel,
   section,
@@ -15,12 +15,18 @@ export function Pipeline({
   stages,
   exits,
   momentum,
+  daily,
+  hours,
   onToggleStage,
   onToggleStatus,
 }: {
   stages: FunnelStage[];
   exits: ExitStat[];
   momentum: Momentum;
+  /** Last 7 days, for the DAY view of the momentum panel. */
+  daily: Momentum;
+  /** Hour-of-day aggregate, for the HOUR view. */
+  hours: HourStats;
   onToggleStage: (stage: number) => void;
   onToggleStatus: (status: Status) => void;
 }) {
@@ -123,81 +129,7 @@ export function Pipeline({
           </div>
         </div>
 
-        <div
-          style={{
-            borderTop: '1px solid #d8d1c2',
-            padding: '18px 0 0',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div style={{ ...panelLabel, marginBottom: 12 }}>WEEKLY MOMENTUM</div>
-
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <span
-              style={{
-                fontFamily: SERIF_JP,
-                fontSize: 42,
-                fontWeight: 600,
-                letterSpacing: '-.01em',
-                lineHeight: 0.9,
-                color: '#2c3640',
-              }}
-            >
-              {momentum.thisWeek}
-            </span>
-            <span style={{ fontSize: 12, color: '#8b939e' }}>apps this week</span>
-          </div>
-
-          <div
-            style={{
-              fontSize: 12.5,
-              fontWeight: 500,
-              color: momentum.deltaColor,
-              marginTop: 6,
-            }}
-          >
-            {momentum.deltaLabel}
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-end',
-              gap: 5,
-              height: 66,
-              marginTop: 'auto',
-              paddingTop: 16,
-            }}
-          >
-            {momentum.bars.map((wk, i) => (
-              <div
-                key={i}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 5,
-                  height: '100%',
-                  justifyContent: 'flex-end',
-                }}
-              >
-                <div
-                  style={{
-                    width: '100%',
-                    height: wk.h + '%',
-                    minHeight: 3,
-                    background: wk.fill,
-                    borderRadius: '2px 2px 0 0',
-                    transition: 'height .5s cubic-bezier(.2,.7,.2,1)',
-                  }}
-                />
-                <span style={{ fontSize: 8.5, color: '#9aa3ad' }}>{wk.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <MomentumPanel weekly={momentum} daily={daily} hours={hours} />
       </div>
     </section>
   );

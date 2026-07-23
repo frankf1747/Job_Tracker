@@ -3,7 +3,6 @@ import { ApplicationsTable } from './components/ApplicationsTable';
 import { Donut } from './components/Donut';
 import { FilterStrip, type Chip } from './components/FilterStrip';
 import { Grain, Hero, VerticalMotto } from './components/Hero';
-import { HourChart } from './components/HourChart';
 import { LocationMap, type MapScope } from './components/LocationMap';
 import { Overview } from './components/Overview';
 import { ParsingOverlay } from './components/ParsingOverlay';
@@ -17,6 +16,7 @@ import {
   STAGE_DEFS,
   exitStats,
   funnelStages,
+  dailyMomentum,
   hourHistogram,
   industryArcs,
   mapCaption,
@@ -49,7 +49,15 @@ import {
   listApplications,
   updateApplication,
 } from './data/applications';
-import { loadResumes, saveResumes, type Resume } from './data/resumeStore';
+import {
+  generalResumes,
+  loadResumes,
+  makeResume,
+  putResumeFile,
+  saveResumes,
+  type Resume,
+} from './data/resumeStore';
+import type { NewResume } from './components/ResumeField';
 import { supabase } from './lib/supabase';
 
 const PAGE_SIZE = 12;
@@ -163,8 +171,31 @@ export default function App({ source }: { source: DataSource }) {
     resumesRef.current = resumes;
   }, [resumes]);
 
-  /** The resume a new application defaults to: the user's first, if they have one. */
-  const defaultResume = useCallback(() => resumesRef.current[0]?.label ?? '', []);
+  /**
+   * The resume a new application defaults to. A tailored resume belongs to the
+   * application it was written for, so it is never the default for the next one.
+   */
+  const defaultResume = useCallback(
+    () => generalResumes(resumesRef.current)[0]?.label ?? resumesRef.current[0]?.label ?? '',
+    [],
+  );
+
+  /**
+   * Create a resume from inside the review modal, so a role-specific rewrite
+   * doesn't force the half-filled application to be abandoned first.
+   */
+  const createResume = useCallback(
+    async ({ label, tailored, file }: NewResume) => {
+      const resume = makeResume(label, tailored);
+      if (file) {
+        await putResumeFile(resume.id, file);
+        resume.fileName = file.name;
+        resume.fileSize = file.size;
+      }
+      updateResumes([...resumesRef.current, resume]);
+    },
+    [updateResumes],
+  );
 
   const reload = useCallback(() => {
     if (!userId) return;
@@ -482,6 +513,7 @@ export default function App({ source }: { source: DataSource }) {
   const stages = useMemo(() => funnelStages(d, filter), [d, filter]);
   const exits = useMemo(() => exitStats(d, filter), [d, filter]);
   const mo = useMemo(() => momentum(rows, now), [rows, now]);
+  const dailyMo = useMemo(() => dailyMomentum(rows, now), [rows, now]);
   const skills = useMemo(() => skillArcs(visible, filter.skills), [visible, filter.skills]);
   const industries = useMemo(
     () => industryArcs(visible, filter.industries),
@@ -604,7 +636,8 @@ export default function App({ source }: { source: DataSource }) {
       <Hero pasteKey={isMac ? '⌘' : 'Ctrl'} />
 
       <div
-        style={{ position: 'relative', maxWidth: 1360, margin: '0 auto', padding: '0 34px 90px' }}
+        className="page"
+        style={{ position: 'relative', maxWidth: 1360, margin: '0 auto' }}
       >
         <svg
           aria-hidden="true"
@@ -661,6 +694,8 @@ export default function App({ source }: { source: DataSource }) {
           stages={stages}
           exits={exits}
           momentum={mo}
+          daily={dailyMo}
+          hours={hours}
           onToggleStage={toggleStage}
           onToggleStatus={(s) => toggleFilter('statuses', s)}
         />
@@ -735,12 +770,6 @@ export default function App({ source }: { source: DataSource }) {
               caption={mapCaption(visible)}
             />
           </div>
-
-          {/* Full width: 24 bars need the room, and unlike the donuts this one
-              reads left-to-right as a day. */}
-          <div style={{ marginTop: 12 }}>
-            <HourChart stats={hours} />
-          </div>
         </section>
       </div>
 
@@ -775,7 +804,8 @@ export default function App({ source }: { source: DataSource }) {
         <ReviewModal
           review={review}
           mode={editingId ? 'edit' : 'add'}
-          resumes={resumes.map((r) => r.label)}
+          resumes={resumes}
+          onCreateResume={createResume}
           saving={saving}
           onPatch={(patch) => setReview((r) => (r ? { ...r, ...patch } : r))}
           onAddSkill={() =>
