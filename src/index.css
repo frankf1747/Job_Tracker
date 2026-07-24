@@ -162,3 +162,13 @@ table {
     padding-right: 68px;
   }
 }
+
+/* Company List inline editors — transparent until focused, like the table's
+   note field. */
+.company-cell {
+  transition: border-color 0.15s, background 0.15s;
+}
+.company-cell:focus {
+  border-color: #41678a;
+  background: #fff;
+}

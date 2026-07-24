@@ -9,7 +9,15 @@ import { ParsingOverlay } from './components/ParsingOverlay';
 import { Pipeline } from './components/Pipeline';
 import { ResumePanel } from './components/ResumePanel';
 import { Toast, type ToastState } from './components/Toast';
-import { ToolRail, ResumeIcon, SignOutIcon } from './components/ToolRail';
+import { ToolRail, CompanyIcon, HomeIcon, ResumeIcon, SignOutIcon } from './components/ToolRail';
+import { CompanyList } from './components/CompanyList';
+import {
+  createCompany,
+  deleteCompany,
+  listCompanies,
+  updateCompany,
+  type Company,
+} from './data/companies';
 import { ReviewModal } from './components/ReviewModal';
 import { section, sectionHeading, sectionHeadingRow } from './components/styles';
 import {
@@ -71,6 +79,22 @@ const CYCLE_START = new Date(2026, 6, 22);
 
 /** How long the parsing overlay lingers, so the transition doesn't flash. */
 const PARSE_MIN_MS = 1050;
+
+/** Example rows for the Company List in sample mode, so the page isn't blank. */
+const SAMPLE_COMPANIES: Company[] = [
+  {
+    id: 'sample-1',
+    name: 'Regeneron',
+    notes: 'Referral — Priya (alum). Biostatistics team hiring in spring.',
+    createdAt: Date.now(),
+  },
+  {
+    id: 'sample-2',
+    name: 'Ramp',
+    notes: 'Watch careers page — data roles open periodically.',
+    createdAt: Date.now() - 86_400_000,
+  },
+];
 
 function FullPage({ children }: { children: React.ReactNode }) {
   return (
@@ -140,6 +164,20 @@ export default function App({ source }: { source: DataSource }) {
   const [now, setNow] = useState(() => new Date());
   const [resumes, setResumes] = useState<Resume[]>(() => loadResumes());
   const [panel, setPanel] = useState<'resumes' | null>(null);
+  const [view, setView] = useState<'home' | 'companies'>('home');
+
+  // Company List. In sample mode it is seeded local state; signed in it loads
+  // from Supabase the first time the page is opened.
+  const [companies, setCompanies] = useState<Company[]>(() =>
+    source.kind === 'sample' ? SAMPLE_COMPANIES : [],
+  );
+  const [companiesLoad, setCompaniesLoad] = useState<'idle' | 'loading' | 'ready' | 'error'>(
+    source.kind === 'sample' ? 'ready' : 'idle',
+  );
+  const companiesRef = useRef<Company[]>(companies);
+  useEffect(() => {
+    companiesRef.current = companies;
+  }, [companies]);
 
   const updateResumes = useCallback((next: Resume[]) => {
     setResumes(next);
@@ -197,6 +235,96 @@ export default function App({ source }: { source: DataSource }) {
     [updateResumes],
   );
 
+  // ---------- company list ----------
+  const loadCompanies = useCallback(() => {
+    if (!userId) return;
+    setCompaniesLoad('loading');
+    listCompanies()
+      .then((cs) => {
+        setCompanies(cs);
+        setCompaniesLoad('ready');
+      })
+      .catch(() => setCompaniesLoad('error'));
+  }, [userId]);
+
+  // Lazy: the query only runs the first time the page is opened.
+  const openCompanies = useCallback(() => {
+    setView('companies');
+    if (userId && companiesLoad === 'idle') loadCompanies();
+  }, [userId, companiesLoad, loadCompanies]);
+
+  const addCompany = useCallback(
+    async (name: string, notes: string) => {
+      if (!userId) {
+        setCompanies((cs) => [
+          { id: crypto.randomUUID(), name, notes, createdAt: Date.now() },
+          ...cs,
+        ]);
+        return;
+      }
+      try {
+        const saved = await createCompany(name, notes, userId);
+        setCompanies((cs) => [saved, ...cs]);
+      } catch {
+        showToast(`Couldn't save ${name}.`, 'error');
+      }
+    },
+    [userId, showToast],
+  );
+
+  const renameCompany = useCallback(
+    (id: string, name: string) => {
+      const prev = companiesRef.current.find((c) => c.id === id);
+      setCompanies((cs) => cs.map((c) => (c.id === id ? { ...c, name } : c)));
+      if (!userId || !prev) return;
+      updateCompany(id, { name }).catch(() => {
+        setCompanies((cs) => cs.map((c) => (c.id === id ? prev : c)));
+        showToast(`Couldn't rename ${prev.name}.`, 'error');
+      });
+    },
+    [userId, showToast],
+  );
+
+  // Notes fire per keystroke, so persistence is debounced, like the table's.
+  const companyNoteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const noteCompany = useCallback(
+    (id: string, notes: string) => {
+      setCompanies((cs) => cs.map((c) => (c.id === id ? { ...c, notes } : c)));
+      if (!userId) return;
+      clearTimeout(companyNoteTimers.current[id]);
+      companyNoteTimers.current[id] = setTimeout(() => {
+        updateCompany(id, { notes }).catch(() => showToast("Couldn't save that note.", 'error'));
+      }, 700);
+    },
+    [userId, showToast],
+  );
+
+  useEffect(() => {
+    const timers = companyNoteTimers.current;
+    return () => {
+      for (const t of Object.values(timers)) clearTimeout(t);
+    };
+  }, []);
+
+  const removeCompany = useCallback(
+    (id: string) => {
+      const index = companiesRef.current.findIndex((c) => c.id === id);
+      if (index < 0) return;
+      const prev = companiesRef.current[index];
+      setCompanies((cs) => cs.filter((c) => c.id !== id));
+      if (!userId) return;
+      deleteCompany(id).catch(() => {
+        setCompanies((cs) => {
+          const next = cs.slice();
+          next.splice(Math.min(index, next.length), 0, prev);
+          return next;
+        });
+        showToast(`Couldn't remove ${prev.name}.`, 'error');
+      });
+    },
+    [userId, showToast],
+  );
+
   const reload = useCallback(() => {
     if (!userId) return;
     setLoad('loading');
@@ -235,7 +363,7 @@ export default function App({ source }: { source: DataSource }) {
   // ---------- paste to add ----------
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
-      if (review || parsing) return;
+      if (review || parsing || view !== 'home') return;
 
       // Never hijack a paste the user aimed at a field.
       const t = e.target as HTMLElement | null;
@@ -279,7 +407,7 @@ export default function App({ source }: { source: DataSource }) {
 
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-  }, [review, parsing, showToast, defaultResume]);
+  }, [review, parsing, view, showToast, defaultResume]);
 
   /** Reopen the review modal on an existing row, to edit it. */
   const startEdit = useCallback((id: string) => {
@@ -633,148 +761,170 @@ export default function App({ source }: { source: DataSource }) {
     >
       <VerticalMotto />
       <Grain />
-      <Hero pasteKey={isMac ? '⌘' : 'Ctrl'} />
 
-      <div
-        className="page"
-        style={{ position: 'relative', maxWidth: 1360, margin: '0 auto' }}
-      >
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 1360 2400"
-          preserveAspectRatio="none"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            zIndex: -1,
-            pointerEvents: 'none',
-          }}
-          fill="none"
-          stroke="#8a9db0"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
-          <path d="M40 360 C260 344 620 372 880 356 C1030 347 1200 366 1320 354" opacity=".4" />
-          <path
-            d="M980 760 C1080 748 1180 762 1240 800 C1272 820 1252 836 1236 822"
-            opacity=".42"
-          />
-          <path d="M60 1520 C120 1502 240 1510 316 1520 C348 1524 340 1542 314 1536" opacity=".4" />
-          <path
-            d="M1180 1980 C1260 1996 1300 2024 1272 2050 C1252 2068 1238 2050 1250 2038"
-            opacity=".38"
-          />
-        </svg>
+      {/* The dashboard. Unmounted on the Company List page rather than merely
+          hidden, so keyboard focus never lands on the table behind the overlay
+          and the paste-to-add handler has nothing to compete with. */}
+      {view === 'home' && (
+        <>
+          <Hero pasteKey={isMac ? '⌘' : 'Ctrl'} />
 
-        {filtered && (
-          <FilterStrip
-            chips={chips}
-            shownCount={d.total}
-            totalCount={rows.length}
-            onReset={resetFilters}
-          />
-        )}
+          <div className="page" style={{ position: 'relative', maxWidth: 1360, margin: '0 auto' }}>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 1360 2400"
+              preserveAspectRatio="none"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: -1,
+                pointerEvents: 'none',
+              }}
+              fill="none"
+              stroke="#8a9db0"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
+              <path d="M40 360 C260 344 620 372 880 356 C1030 347 1200 366 1320 354" opacity=".4" />
+              <path
+                d="M980 760 C1080 748 1180 762 1240 800 C1272 820 1252 836 1236 822"
+                opacity=".42"
+              />
+              <path
+                d="M60 1520 C120 1502 240 1510 316 1520 C348 1524 340 1542 314 1536"
+                opacity=".4"
+              />
+              <path
+                d="M1180 1980 C1260 1996 1300 2024 1272 2050 C1252 2068 1238 2050 1250 2038"
+                opacity=".38"
+              />
+            </svg>
 
-        <Overview
-          totalApps={rows.length.toLocaleString()}
-          totalAppsSub={
-            filtered ? `${d.total.toLocaleString()} match current filter` : '- keep going'
-          }
-          cdWeeks={Math.floor(cdDays / 7)}
-          cdDays={cdDays}
-          cdDaysExtra={cdDays % 7}
-          cdTargetLabel={`${MONTHS[target.getMonth()]} ${target.getDate()}, ${target.getFullYear()}`}
-          dayNumber={pipCount}
-        />
+            {filtered && (
+              <FilterStrip
+                chips={chips}
+                shownCount={d.total}
+                totalCount={rows.length}
+                onReset={resetFilters}
+              />
+            )}
 
-        <Pipeline
-          stages={stages}
-          exits={exits}
-          momentum={mo}
-          daily={dailyMo}
-          hours={hours}
-          onToggleStage={toggleStage}
-          onToggleStatus={(s) => toggleFilter('statuses', s)}
-        />
+            <Overview
+              totalApps={rows.length.toLocaleString()}
+              totalAppsSub={
+                filtered ? `${d.total.toLocaleString()} match current filter` : '- keep going'
+              }
+              cdWeeks={Math.floor(cdDays / 7)}
+              cdDays={cdDays}
+              cdDaysExtra={cdDays % 7}
+              cdTargetLabel={`${MONTHS[target.getMonth()]} ${target.getDate()}, ${target.getFullYear()}`}
+              dayNumber={pipCount}
+            />
 
-        <ApplicationsTable
-          rows={pageRows}
-          total={sorted.length}
-          unfilteredTotal={rows.length}
-          pasteKey={isMac ? '⌘' : 'Ctrl'}
-          search={search}
-          onSearch={(v) => {
-            setSearch(v);
-            setPage(1);
-          }}
-          sortKey={sortKey}
-          sortDir={sortDir}
-          onSort={onSort}
-          expanded={expanded}
-          onToggleExpand={(id) =>
-            setExpanded((e) => {
-              const next = { ...e };
-              if (next[id]) delete next[id];
-              else next[id] = true;
-              return next;
-            })
-          }
-          dateEdit={dateEdit}
-          onDateFocus={(id, current) => setDateEdit((e) => ({ ...e, [id]: current }))}
-          onDateInput={(id, v) => setDateEdit((e) => ({ ...e, [id]: v }))}
-          onDateCommit={onDateCommit}
-          onStatusChange={onStatusChange}
-          onNotesChange={onNotesChange}
-          onEdit={startEdit}
-          onDelete={deleteRow}
-          onPickSkill={(s) => toggleFilter('skills', s)}
-          pageInfo={
-            sorted.length
-              ? `Showing ${start + 1}–${Math.min(start + PAGE_SIZE, sorted.length)} of ${sorted.length}`
-              : '0 results'
-          }
-          page={currentPage}
-          totalPages={totalPages}
-          onPrev={() => setPage((x) => Math.max(1, x - 1))}
-          onNext={() => setPage((x) => Math.min(totalPages, x + 1))}
-        />
+            <Pipeline
+              stages={stages}
+              exits={exits}
+              momentum={mo}
+              daily={dailyMo}
+              hours={hours}
+              onToggleStage={toggleStage}
+              onToggleStatus={(s) => toggleFilter('statuses', s)}
+            />
 
-        <section style={section}>
-          <div style={sectionHeadingRow}>
-            <h2 style={sectionHeading}>Breakdowns</h2>
+            <ApplicationsTable
+              rows={pageRows}
+              total={sorted.length}
+              unfilteredTotal={rows.length}
+              pasteKey={isMac ? '⌘' : 'Ctrl'}
+              search={search}
+              onSearch={(v) => {
+                setSearch(v);
+                setPage(1);
+              }}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={onSort}
+              expanded={expanded}
+              onToggleExpand={(id) =>
+                setExpanded((e) => {
+                  const next = { ...e };
+                  if (next[id]) delete next[id];
+                  else next[id] = true;
+                  return next;
+                })
+              }
+              dateEdit={dateEdit}
+              onDateFocus={(id, current) => setDateEdit((e) => ({ ...e, [id]: current }))}
+              onDateInput={(id, v) => setDateEdit((e) => ({ ...e, [id]: v }))}
+              onDateCommit={onDateCommit}
+              onStatusChange={onStatusChange}
+              onNotesChange={onNotesChange}
+              onEdit={startEdit}
+              onDelete={deleteRow}
+              onPickSkill={(s) => toggleFilter('skills', s)}
+              pageInfo={
+                sorted.length
+                  ? `Showing ${start + 1}–${Math.min(start + PAGE_SIZE, sorted.length)} of ${sorted.length}`
+                  : '0 results'
+              }
+              page={currentPage}
+              totalPages={totalPages}
+              onPrev={() => setPage((x) => Math.max(1, x - 1))}
+              onNext={() => setPage((x) => Math.min(totalPages, x + 1))}
+            />
+
+            <section style={section}>
+              <div style={sectionHeadingRow}>
+                <h2 style={sectionHeading}>Breakdowns</h2>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <Donut
+                  title="BY INDUSTRY"
+                  subtitle="share of applications"
+                  arcs={industries}
+                  onPick={(n) => toggleFilter('industries', n)}
+                />
+                <Donut
+                  title="TOP SKILLS"
+                  subtitle="share of mentions"
+                  arcs={skills}
+                  onPick={(n) => toggleFilter('skills', n)}
+                />
+                <LocationMap
+                  cities={cities}
+                  scope={mapScope}
+                  onScope={setMapScope}
+                  selectedLocations={filter.locations}
+                  onPick={onPickCity}
+                  picked={picked}
+                  onClearPick={clearPickedCity}
+                  caption={mapCaption(visible)}
+                />
+              </div>
+            </section>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-            <Donut
-              title="BY INDUSTRY"
-              subtitle="share of applications"
-              arcs={industries}
-              onPick={(n) => toggleFilter('industries', n)}
-            />
-            <Donut
-              title="TOP SKILLS"
-              subtitle="share of mentions"
-              arcs={skills}
-              onPick={(n) => toggleFilter('skills', n)}
-            />
-            <LocationMap
-              cities={cities}
-              scope={mapScope}
-              onScope={setMapScope}
-              selectedLocations={filter.locations}
-              onPick={onPickCity}
-              picked={picked}
-              onClearPick={clearPickedCity}
-              caption={mapCaption(visible)}
-            />
-          </div>
-        </section>
-      </div>
+        </>
+      )}
 
       <ToolRail
         tools={[
+          {
+            id: 'home',
+            label: 'Home',
+            icon: <HomeIcon />,
+            onClick: () => setView('home'),
+            active: view === 'home',
+          },
+          {
+            id: 'companies',
+            label: 'Company List',
+            icon: <CompanyIcon />,
+            onClick: openCompanies,
+            active: view === 'companies',
+          },
           {
             id: 'resumes',
             label: 'Resumes',
@@ -793,6 +943,18 @@ export default function App({ source }: { source: DataSource }) {
             : []),
         ]}
       />
+
+      {view === 'companies' && (
+        <CompanyList
+          companies={companies}
+          load={companiesLoad === 'idle' ? 'ready' : companiesLoad}
+          onAdd={addCompany}
+          onRename={renameCompany}
+          onNotes={noteCompany}
+          onDelete={removeCompany}
+          onReload={loadCompanies}
+        />
+      )}
 
       {panel === 'resumes' && (
         <ResumePanel resumes={resumes} onChange={updateResumes} onClose={() => setPanel(null)} />
