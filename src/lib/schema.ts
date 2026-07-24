@@ -163,9 +163,40 @@ export type Application = {
   sourceUrl: string;
 };
 
-/** How far each status implies an application progressed, when not stated otherwise. */
+/**
+ * The pipeline stage each status corresponds to.
+ *
+ * Rejected and Ghosted are outcomes, not stages — they say the application
+ * ended, not how far it got — so they carry no stage of their own. That is the
+ * whole point of tracking `reached` separately from `status`: a rejection after
+ * an interview and a rejection at the résumé screen are different, and only
+ * `reached` records which.
+ */
+const STAGE_OF: Record<Status, number> = {
+  Submitted: 0,
+  OA: 1,
+  Interview: 2,
+  Offer: 3,
+  Rejected: 0,
+  Ghosted: 0,
+};
+
+/**
+ * The `reached` value after moving to `status`, given how far the row had
+ * already progressed.
+ *
+ * `reached` is the furthest stage an application actually reached, so it only
+ * ever moves forward: advancing to OA/Interview/Offer raises it, while a
+ * terminal Rejected/Ghosted leaves it where it was. This is why marking a
+ * freshly-submitted row Rejected no longer credits it with an OA it never had.
+ */
+export function reachedFrom(status: Status, current = 0): number {
+  return Math.max(current, STAGE_OF[status]);
+}
+
+/** The stage a status implies on its own, with no prior progress. */
 export function reachedFor(status: Status): number {
-  return { Submitted: 0, OA: 1, Interview: 2, Offer: 3, Rejected: 1, Ghosted: 0 }[status] ?? 0;
+  return reachedFrom(status, 0);
 }
 
 /** Whether the employer ever replied. Drives the response-rate stat. */

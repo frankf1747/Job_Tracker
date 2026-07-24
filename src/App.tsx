@@ -49,7 +49,7 @@ import {
   parsePosting,
   type Draft,
 } from './lib/parsePosting';
-import { DAY, MONTHS, reachedFor, type Application, type Status } from './lib/schema';
+import { DAY, MONTHS, reachedFrom, type Application, type Status } from './lib/schema';
 import { makeSeedRows } from './data/seed';
 import {
   createApplication,
@@ -475,7 +475,12 @@ export default function App({ source }: { source: DataSource }) {
   );
 
   const onStatusChange = useCallback(
-    (id: string, status: Status) => updateRow(id, { status, reached: reachedFor(status) }),
+    (id: string, status: Status) => {
+      // Preserve how far the row already got, so a terminal status doesn't
+      // rewrite its history — a rejection after an interview stays at Interview.
+      const current = rowsRef.current.find((r) => r.id === id)?.reached ?? 0;
+      updateRow(id, { status, reached: reachedFrom(status, current) });
+    },
     [updateRow],
   );
 
@@ -582,7 +587,10 @@ export default function App({ source }: { source: DataSource }) {
 
     // Everything the modal can set. Notes are intentionally excluded so editing
     // a row never clears a note typed inline; reached follows status, matching
-    // the inline status dropdown.
+    // the inline status dropdown — preserving an edited row's prior progress.
+    const priorReached = editingId
+      ? (rowsRef.current.find((r) => r.id === editingId)?.reached ?? 0)
+      : 0;
     const fields = {
       company: review.company,
       position: review.position,
@@ -592,7 +600,7 @@ export default function App({ source }: { source: DataSource }) {
       salary: review.salary,
       skills: review.skills.slice(),
       status: review.status,
-      reached: reachedFor(review.status),
+      reached: reachedFrom(review.status, priorReached),
       location: review.location,
       applied: review.appliedDate,
       resume: review.resume,
