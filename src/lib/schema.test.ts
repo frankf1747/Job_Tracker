@@ -23,15 +23,24 @@ describe('reachedFrom', () => {
     expect(reachedFrom('Ghosted', 1)).toBe(1);
   });
 
-  test('reached only ever moves forward', () => {
-    // Correcting Interview back to OA keeps the furthest stage reached.
-    expect(reachedFrom('OA', 2)).toBe(2);
-    expect(reachedFrom('Submitted', 3)).toBe(3);
+  test('a progress status can walk reached back down', () => {
+    // Setting a status is a correction, not only an advance — otherwise a
+    // reached inflated by mistake could never be undone.
+    expect(reachedFrom('OA', 2)).toBe(1);
+    expect(reachedFrom('Submitted', 3)).toBe(0);
   });
 
-  test('advancing raises reached past the current stage', () => {
+  test('advancing raises reached to the new stage', () => {
     expect(reachedFrom('Interview', 1)).toBe(2);
     expect(reachedFrom('Offer', 2)).toBe(3);
+  });
+
+  test('a mistaken rejection can be undone via Submitted', () => {
+    // The recovery path for a row wrongly left at reached 1 by the old bug.
+    let reached = 1; // stale, saved before the fix
+    reached = reachedFrom('Submitted', reached); // → 0
+    reached = reachedFrom('Rejected', reached); // preserves 0
+    expect(reached).toBe(0);
   });
 });
 

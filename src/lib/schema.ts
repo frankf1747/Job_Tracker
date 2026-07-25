@@ -185,13 +185,18 @@ const STAGE_OF: Record<Status, number> = {
  * The `reached` value after moving to `status`, given how far the row had
  * already progressed.
  *
- * `reached` is the furthest stage an application actually reached, so it only
- * ever moves forward: advancing to OA/Interview/Offer raises it, while a
- * terminal Rejected/Ghosted leaves it where it was. This is why marking a
- * freshly-submitted row Rejected no longer credits it with an OA it never had.
+ * A progress status (Submitted/OA/Interview/Offer) sets `reached` to its own
+ * stage — the status the user picks is the truth, including a correction that
+ * moves it back. A terminal Rejected/Ghosted preserves the current value, since
+ * it records where the application ended, not a stage of its own: a rejection
+ * after an interview stays at Interview, one at the résumé screen stays at 0.
+ *
+ * Setting a status directly (rather than max-ing) is deliberate — it is the
+ * only way to walk back a `reached` that a status was set to by mistake.
  */
 export function reachedFrom(status: Status, current = 0): number {
-  return Math.max(current, STAGE_OF[status]);
+  if (status === 'Rejected' || status === 'Ghosted') return current;
+  return STAGE_OF[status];
 }
 
 /** The stage a status implies on its own, with no prior progress. */
