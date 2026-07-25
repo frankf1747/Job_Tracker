@@ -29,6 +29,7 @@ export function ResumePanel({
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [showRole, setShowRole] = useState(false);
   const fileFor = useRef<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -174,27 +175,20 @@ export function ResumePanel({
 
       <button
         onClick={() => setTailored(r.id, !r.tailored)}
-        aria-pressed={r.tailored}
-        title={
-          r.tailored
-            ? 'Role-specific — kept out of the picker. Click to make it general.'
-            : 'General — offered in the picker. Click to mark it role-only.'
-        }
+        aria-label={r.tailored ? 'Make general' : 'Make role-only'}
+        title={r.tailored ? 'Make general' : 'Make role-only'}
         style={{
           flex: 'none',
-          background: r.tailored ? '#f3e7d1' : '#eef1f4',
-          border: `1px solid ${r.tailored ? '#e3cfa0' : '#d6dde4'}`,
-          color: r.tailored ? '#8a6420' : '#5f7488',
-          borderRadius: 999,
-          padding: '3px 9px',
-          fontSize: 9.5,
-          fontWeight: 700,
-          letterSpacing: '.05em',
-          fontFamily: SANS,
-          whiteSpace: 'nowrap',
+          background: 'transparent',
+          border: '1px solid #ddd6c8',
+          borderRadius: 6,
+          padding: '4px 7px',
+          fontSize: 12,
+          lineHeight: 1,
+          color: '#8b939e',
         }}
       >
-        {r.tailored ? 'ROLE-ONLY' : 'GENERAL'}
+        ⇄
       </button>
 
       {r.fileName ? (
@@ -351,16 +345,29 @@ export function ResumePanel({
           {general.map((r) => renderRow(r))}
 
           {tailored.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 2px 0' }}>
-              <span style={{ ...microLabel, whiteSpace: 'nowrap' }}>ROLE-SPECIFIC</span>
-              <span style={{ fontFamily: SANS, fontSize: 10.5, color: '#aeb6bf' }}>
-                kept out of the picker
+            <button
+              onClick={() => setShowRole((v) => !v)}
+              aria-expanded={showRole}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                margin: '6px 2px 0',
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                width: '100%',
+              }}
+            >
+              <span style={{ fontSize: 10, color: '#8b939e' }}>{showRole ? '▾' : '▸'}</span>
+              <span style={{ ...microLabel, whiteSpace: 'nowrap' }}>
+                ROLE-SPECIFIC ({tailored.length})
               </span>
               <div style={{ flex: 1, height: 1, background: '#e7e2d5' }} />
-            </div>
+            </button>
           )}
 
-          {tailored.map((r) => renderRow(r))}
+          {showRole && tailored.map((r) => renderRow(r))}
 
           {error && (
             <div
