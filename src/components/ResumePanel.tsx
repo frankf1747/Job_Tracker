@@ -57,6 +57,13 @@ export function ResumePanel({
       resumes.map((r) => (r.id === id ? { ...r, label, updatedAt: new Date().toISOString() } : r)),
     );
 
+  const setTailored = (id: string, tailored: boolean) =>
+    onChange(
+      resumes.map((r) =>
+        r.id === id ? { ...r, tailored, updatedAt: new Date().toISOString() } : r,
+      ),
+    );
+
   const remove = async (id: string) => {
     await deleteResumeFile(id);
     onChange(resumes.filter((r) => r.id !== id));
@@ -126,6 +133,131 @@ export function ResumePanel({
       ),
     );
   };
+
+  // Split so the picker's contents (general) sit apart from role-specific
+  // one-offs, matching how the picker itself hides the tailored ones.
+  const general = resumes.filter((r) => !r.tailored);
+  const tailored = resumes.filter((r) => r.tailored);
+
+  const renderRow = (r: Resume) => (
+    <div
+      key={r.id}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        background: '#fff',
+        border: '1px solid #e2dccd',
+        // A gold left accent marks role-specific rows at a glance, echoing the badge.
+        borderLeftWidth: r.tailored ? 3 : 1,
+        borderLeftColor: r.tailored ? '#d9b877' : '#e2dccd',
+        borderRadius: 7,
+        padding: '9px 11px',
+      }}
+    >
+      <input
+        value={r.label}
+        onChange={(e) => rename(r.id, e.target.value)}
+        aria-label={`Name for ${r.label}`}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          border: '1px solid transparent',
+          borderRadius: 5,
+          background: 'transparent',
+          padding: '5px 6px',
+          fontSize: 13,
+          fontWeight: 600,
+          color: '#2c3640',
+        }}
+      />
+
+      <button
+        onClick={() => setTailored(r.id, !r.tailored)}
+        aria-pressed={r.tailored}
+        title={
+          r.tailored
+            ? 'Role-specific — kept out of the picker. Click to make it general.'
+            : 'General — offered in the picker. Click to mark it role-only.'
+        }
+        style={{
+          flex: 'none',
+          background: r.tailored ? '#f3e7d1' : '#eef1f4',
+          border: `1px solid ${r.tailored ? '#e3cfa0' : '#d6dde4'}`,
+          color: r.tailored ? '#8a6420' : '#5f7488',
+          borderRadius: 999,
+          padding: '3px 9px',
+          fontSize: 9.5,
+          fontWeight: 700,
+          letterSpacing: '.05em',
+          fontFamily: SANS,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {r.tailored ? 'ROLE-ONLY' : 'GENERAL'}
+      </button>
+
+      {r.fileName ? (
+        <button
+          onClick={() => openPdf(r.id)}
+          title={`${r.fileName}${r.fileSize ? ' · ' + prettySize(r.fileSize) : ''}`}
+          style={{
+            background: '#e7edf3',
+            border: '1px solid #cfdce6',
+            color: '#3f6079',
+            borderRadius: 999,
+            padding: '4px 10px',
+            fontSize: 11,
+            fontFamily: SANS,
+            maxWidth: 130,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            flex: 'none',
+          }}
+        >
+          {r.fileName}
+        </button>
+      ) : (
+        <span style={{ fontFamily: SANS, fontSize: 11, color: '#aeb6bf', flex: 'none' }}>
+          no PDF
+        </span>
+      )}
+
+      <button
+        onClick={() => (r.fileName ? detach(r.id) : pickFile(r.id))}
+        disabled={busyId === r.id}
+        style={{
+          background: 'transparent',
+          border: '1px solid #ddd6c8',
+          borderRadius: 6,
+          padding: '5px 10px',
+          fontSize: 11.5,
+          color: '#5f6a75',
+          flex: 'none',
+        }}
+      >
+        {busyId === r.id ? 'Saving…' : r.fileName ? 'Replace' : 'Attach PDF'}
+      </button>
+
+      <button
+        onClick={() => remove(r.id)}
+        aria-label={`Delete ${r.label}`}
+        title="Delete"
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: '#a99f8e',
+          fontSize: 17,
+          lineHeight: 1,
+          padding: '0 2px',
+          flex: 'none',
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
 
   return (
     <div
@@ -216,97 +348,19 @@ export function ResumePanel({
             </div>
           )}
 
-          {resumes.map((r) => (
-            <div
-              key={r.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                background: '#fff',
-                border: '1px solid #e2dccd',
-                borderRadius: 7,
-                padding: '9px 11px',
-              }}
-            >
-              <input
-                value={r.label}
-                onChange={(e) => rename(r.id, e.target.value)}
-                aria-label={`Name for ${r.label}`}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  border: '1px solid transparent',
-                  borderRadius: 5,
-                  background: 'transparent',
-                  padding: '5px 6px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: '#2c3640',
-                }}
-              />
+          {general.map((r) => renderRow(r))}
 
-              {r.fileName ? (
-                <button
-                  onClick={() => openPdf(r.id)}
-                  title={`${r.fileName}${r.fileSize ? ' · ' + prettySize(r.fileSize) : ''}`}
-                  style={{
-                    background: '#e7edf3',
-                    border: '1px solid #cfdce6',
-                    color: '#3f6079',
-                    borderRadius: 999,
-                    padding: '4px 10px',
-                    fontSize: 11,
-                    fontFamily: SANS,
-                    maxWidth: 150,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    flex: 'none',
-                  }}
-                >
-                  {r.fileName}
-                </button>
-              ) : (
-                <span style={{ fontFamily: SANS, fontSize: 11, color: '#aeb6bf', flex: 'none' }}>
-                  no PDF
-                </span>
-              )}
-
-              <button
-                onClick={() => (r.fileName ? detach(r.id) : pickFile(r.id))}
-                disabled={busyId === r.id}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid #ddd6c8',
-                  borderRadius: 6,
-                  padding: '5px 10px',
-                  fontSize: 11.5,
-                  color: '#5f6a75',
-                  flex: 'none',
-                }}
-              >
-                {busyId === r.id ? 'Saving…' : r.fileName ? 'Replace' : 'Attach PDF'}
-              </button>
-
-              <button
-                onClick={() => remove(r.id)}
-                aria-label={`Delete ${r.label}`}
-                title="Delete"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#a99f8e',
-                  fontSize: 17,
-                  lineHeight: 1,
-                  padding: '0 2px',
-                  flex: 'none',
-                }}
-              >
-                ×
-              </button>
+          {tailored.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 2px 0' }}>
+              <span style={{ ...microLabel, whiteSpace: 'nowrap' }}>ROLE-SPECIFIC</span>
+              <span style={{ fontFamily: SANS, fontSize: 10.5, color: '#aeb6bf' }}>
+                kept out of the picker
+              </span>
+              <div style={{ flex: 1, height: 1, background: '#e7e2d5' }} />
             </div>
-          ))}
+          )}
+
+          {tailored.map((r) => renderRow(r))}
 
           {error && (
             <div
