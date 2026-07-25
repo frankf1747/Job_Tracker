@@ -18,6 +18,7 @@ export function Pipeline({
   daily,
   hours,
   onToggleStage,
+  onToggleClosed,
   onToggleStatus,
 }: {
   stages: FunnelStage[];
@@ -28,6 +29,8 @@ export function Pipeline({
   /** Hour-of-day aggregate, for the HOUR view. */
   hours: HourStats;
   onToggleStage: (stage: number) => void;
+  /** Toggles the combined Rejected + Ghosted filter for the closed row. */
+  onToggleClosed: () => void;
   onToggleStatus: (status: Status) => void;
 }) {
   return (
@@ -46,7 +49,7 @@ export function Pipeline({
             {stages.map((st) => (
               <button
                 key={st.key}
-                onClick={() => onToggleStage(st.stage)}
+                onClick={() => (st.stage < 0 ? onToggleClosed() : onToggleStage(st.stage))}
                 aria-pressed={st.active}
                 style={{ ...bareButton, display: 'block' }}
               >

@@ -44,14 +44,31 @@ function app(over: Partial<Application> = {}): Application {
 
 describe('funnelStages', () => {
   const rows = [
-    ...Array.from({ length: 6 }, () => app({ reached: 0 })),
-    ...Array.from({ length: 3 }, () => app({ reached: 1 })),
-    app({ reached: 2 }),
+    ...Array.from({ length: 6 }, () => app({ reached: 0, status: 'Submitted' })),
+    ...Array.from({ length: 3 }, () => app({ reached: 1, status: 'OA' })),
+    app({ reached: 2, status: 'Interview' }),
   ];
 
-  test('each stage counts everything that reached at least that far', () => {
+  test('the three progression stages count what reached at least that far', () => {
     const s = funnelStages(derive(rows, NOW), EMPTY_FILTER);
-    expect(s.map((x) => x.count)).toEqual([10, 4, 1, 0]);
+    expect(s.slice(0, 3).map((x) => x.key)).toEqual(['Submitted', 'OA', 'Interview']);
+    expect(s.slice(0, 3).map((x) => x.count)).toEqual([10, 4, 1]);
+  });
+
+  test('the fourth row totals rejected and ghosted, not offers', () => {
+    const closedRows = [
+      ...rows,
+      app({ status: 'Rejected' }),
+      app({ status: 'Rejected' }),
+      app({ status: 'Ghosted' }),
+    ];
+    const s = funnelStages(derive(closedRows, NOW), EMPTY_FILTER);
+    const closed = s[3];
+    expect(closed.key).toBe('Rejected + Ghosted');
+    expect(closed.stage).toBe(-1);
+    expect(closed.count).toBe(3);
+    // Share of all submitted (13 rows), not conversion from the prior stage.
+    expect(closed.conv).toBe('23% of all');
   });
 
   test('the widest stage is 100% and the rest scale to it', () => {
@@ -65,14 +82,12 @@ describe('funnelStages', () => {
     expect(s[0].conv).toBe('100%');
     expect(s[1].conv).toBe('40%');
     expect(s[2].conv).toBe('25%');
-    expect(s[3].conv).toBe('0%');
   });
 
-  test('an empty stage has zero width, but a tiny one stays visible', () => {
-    const s = funnelStages(derive([...rows, app({ reached: 3 })], NOW), EMPTY_FILTER);
-    // 1 of 11 rounds to 9%, still above the 4% floor.
-    expect(s[3].width).toBeGreaterThanOrEqual(4);
+  test('an empty closed row has zero width, but a tiny one stays visible', () => {
     expect(funnelStages(derive(rows, NOW), EMPTY_FILTER)[3].width).toBe(0);
+    const withOne = funnelStages(derive([...rows, app({ status: 'Rejected' })], NOW), EMPTY_FILTER);
+    expect(withOne[3].width).toBeGreaterThanOrEqual(4);
   });
 
   test('the selected stage is highlighted', () => {
@@ -80,6 +95,17 @@ describe('funnelStages', () => {
     expect(s[2].active).toBe(true);
     expect(s[2].fill).toBe('#2c4a66');
     expect(s[0].active).toBe(false);
+  });
+
+  test('the closed row is active only when both terminal statuses are filtered', () => {
+    const closedRows = [...rows, app({ status: 'Rejected' }), app({ status: 'Ghosted' })];
+    const one = funnelStages(derive(closedRows, NOW), { ...EMPTY_FILTER, statuses: ['Rejected'] });
+    expect(one[3].active).toBe(false);
+    const both = funnelStages(derive(closedRows, NOW), {
+      ...EMPTY_FILTER,
+      statuses: ['Rejected', 'Ghosted'],
+    });
+    expect(both[3].active).toBe(true);
   });
 
   test('no rows produces zeroes rather than dividing by zero', () => {

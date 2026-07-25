@@ -15,18 +15,22 @@ export const STAGE_DEFS: [Status, number][] = [
   ['Submitted', 0],
   ['OA', 1],
   ['Interview', 2],
-  ['Offer', 3],
 ];
 
-const STAGE_FILLS = ['#41678a', '#7195b2', '#a5bfd2', '#c19243'];
+const STAGE_FILLS = ['#41678a', '#7195b2', '#a5bfd2'];
+/** The combined rejected + ghosted row — a negative outcome, so a muted clay. */
+const CLOSED_FILL = '#c08575';
+const CLOSED_ACTIVE = '#8f4636';
 
 export type FunnelStage = {
-  key: Status;
+  /** Display label — a status name, or "Rejected + Ghosted" for the closed row. */
+  key: string;
+  /** `reached` index for a progression row; -1 for the combined closed row. */
   stage: number;
   count: number;
   /** Bar width as a percentage of the widest stage. */
   width: number;
-  /** Conversion from the previous stage. */
+  /** Conversion from the previous stage, or share of all for the closed row. */
   conv: string;
   fill: string;
   labelColor: string;
@@ -35,11 +39,11 @@ export type FunnelStage = {
 
 export function funnelStages(d: Derived, filter: Filter): FunnelStage[] {
   const base = Math.max(1, d.ge(0));
+  const barWidth = (count: number) => Math.max(count > 0 ? 4 : 0, Math.round((count / base) * 100));
   let prev: number | null = null;
 
-  return STAGE_DEFS.map(([key, idx], i) => {
+  const stages: FunnelStage[] = STAGE_DEFS.map(([key, idx], i) => {
     const count = d.ge(idx);
-    const width = Math.round((count / base) * 100);
     const conv = prev == null ? '100%' : (prev ? Math.round((count / prev) * 100) : 0) + '%';
     prev = count;
     const active = filter.stage === idx;
@@ -49,13 +53,31 @@ export function funnelStages(d: Derived, filter: Filter): FunnelStage[] {
       stage: idx,
       count,
       // Keep a sliver visible for non-zero stages that would otherwise round to 0.
-      width: Math.max(count > 0 ? 4 : 0, width),
+      width: barWidth(count),
       conv,
       fill: active ? '#2c4a66' : STAGE_FILLS[i],
       labelColor: active ? '#2c4a66' : '#37414c',
       active,
     };
   });
+
+  // In place of the Offer stage: how many applications are done — rejected or
+  // ghosted — as a share of everything submitted. A stage of -1 marks it as an
+  // outcome total rather than a point on the progression.
+  const closed = d.byStatus.Rejected + d.byStatus.Ghosted;
+  const closedActive = filter.statuses.includes('Rejected') && filter.statuses.includes('Ghosted');
+  stages.push({
+    key: 'Rejected + Ghosted',
+    stage: -1,
+    count: closed,
+    width: barWidth(closed),
+    conv: Math.round((closed / base) * 100) + '% of all',
+    fill: closedActive ? CLOSED_ACTIVE : CLOSED_FILL,
+    labelColor: closedActive ? CLOSED_ACTIVE : '#37414c',
+    active: closedActive,
+  });
+
+  return stages;
 }
 
 const EXIT_DEFS: [Status, string][] = [

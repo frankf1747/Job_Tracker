@@ -437,6 +437,17 @@ export default function App({ source }: { source: DataSource }) {
     setPage(1);
   }, []);
 
+  // The closed funnel row filters to both terminal statuses at once; toggling
+  // clears them if both are already on, matching the individual exit chips.
+  const toggleClosed = useCallback(() => {
+    setFilter((f) => {
+      const both = f.statuses.includes('Rejected') && f.statuses.includes('Ghosted');
+      const without = f.statuses.filter((s) => s !== 'Rejected' && s !== 'Ghosted');
+      return { ...f, statuses: both ? without : [...without, 'Rejected', 'Ghosted'] };
+    });
+    setPage(1);
+  }, []);
+
   const resetFilters = useCallback(() => {
     setFilter(EMPTY_FILTER);
     setSearch('');
@@ -839,6 +850,7 @@ export default function App({ source }: { source: DataSource }) {
               daily={dailyMo}
               hours={hours}
               onToggleStage={toggleStage}
+              onToggleClosed={toggleClosed}
               onToggleStatus={(s) => toggleFilter('statuses', s)}
             />
 
