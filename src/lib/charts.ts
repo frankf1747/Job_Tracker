@@ -108,7 +108,7 @@ export function exitStats(d: Derived, filter: Filter): ExitStat[] {
   });
 }
 
-export type MomentumBar = { h: number; fill: string; label: string };
+export type MomentumBar = { h: number; count: number; fill: string; label: string };
 
 export type Momentum = {
   bars: MomentumBar[];
@@ -148,6 +148,7 @@ export function dailyMomentum(allRows: Application[], now: Date): Momentum {
       const date = new Date(midnight - i * DAY);
       return {
         h: Math.round((c / max) * 100),
+        count: c,
         fill: i === 0 ? '#41678a' : '#b9cbd9',
         label: i === 0 ? 'today' : WEEKDAYS[date.getDay()],
       };
@@ -180,6 +181,7 @@ export function momentum(allRows: Application[], now: Date): Momentum {
   const bars = weeks
     .map((c, i) => ({
       h: Math.round((c / maxWk) * 100),
+      count: c,
       fill: i === 0 ? '#41678a' : '#b9cbd9',
       label: i === 0 ? 'now' : '-' + i,
     }))

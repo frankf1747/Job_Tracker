@@ -153,6 +153,18 @@ describe('momentum', () => {
     expect(m.thisWeek).toBe(2);
   });
 
+  test('each bar carries its raw count for the hover tooltip', () => {
+    const rows = [
+      app({ applied: '2026-07-20' }),
+      app({ applied: '2026-07-19' }),
+      app({ applied: '2026-07-10' }),
+    ];
+    const m = momentum(rows, NOW);
+    expect(m.bars[7].count).toBe(2); // this week
+    expect(m.bars[6].count).toBe(1); // one week back
+    expect(m.bars[0].count).toBe(0);
+  });
+
   test('describes the change against last week in words', () => {
     const up = momentum([app({ applied: '2026-07-20' }), app({ applied: '2026-07-19' })], NOW);
     expect(up.deltaLabel).toContain('more than last week');
@@ -334,6 +346,13 @@ describe('dailyMomentum', () => {
     // Reversed for display, so the last bar is today.
     expect(d.bars[6].label).toBe('today');
     expect(d.thisWeek).toBe(2);
+  });
+
+  test('each bar carries its raw count for the hover tooltip', () => {
+    const d = dailyMomentum([on('2026-07-22'), on('2026-07-22'), on('2026-07-21')], NOW);
+    expect(d.bars[6].count).toBe(2); // today
+    expect(d.bars[5].count).toBe(1); // yesterday
+    expect(d.bars[0].count).toBe(0);
   });
 
   test('ignores anything older than seven days', () => {

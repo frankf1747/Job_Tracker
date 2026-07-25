@@ -89,6 +89,7 @@ function Bars({ series }: { series: Momentum }) {
       {series.bars.map((b, i) => (
         <div
           key={i}
+          title={`${b.label}: ${b.count} application${b.count === 1 ? '' : 's'}`}
           style={{
             flex: 1,
             display: 'flex',
@@ -97,6 +98,7 @@ function Bars({ series }: { series: Momentum }) {
             gap: 5,
             height: '100%',
             justifyContent: 'flex-end',
+            cursor: 'default',
           }}
         >
           <div
