@@ -781,153 +781,153 @@ export default function App({ source }: { source: DataSource }) {
       <VerticalMotto />
       <Grain />
 
-      {/* The dashboard. Unmounted on the Company List page rather than merely
-          hidden, so keyboard focus never lands on the table behind the overlay
-          and the paste-to-add handler has nothing to compete with. */}
-      {view === 'home' && (
-        <>
-          <Hero pasteKey={isMac ? '⌘' : 'Ctrl'} />
+      {/* The dashboard stays mounted while the Company List page is open, so
+          returning Home doesn't remount the Hero and re-decode its background
+          photo. `inert` takes it out of the tab order and the accessibility
+          tree — the reason it used to be unmounted — and the opaque Company
+          List overlay hides it from view. */}
+      <div inert={view !== 'home'}>
+        <Hero pasteKey={isMac ? '⌘' : 'Ctrl'} />
 
-          <div className="page" style={{ position: 'relative', maxWidth: 1360, margin: '0 auto' }}>
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 1360 2400"
-              preserveAspectRatio="none"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                zIndex: -1,
-                pointerEvents: 'none',
-              }}
-              fill="none"
-              stroke="#8a9db0"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <path d="M40 360 C260 344 620 372 880 356 C1030 347 1200 366 1320 354" opacity=".4" />
-              <path
-                d="M980 760 C1080 748 1180 762 1240 800 C1272 820 1252 836 1236 822"
-                opacity=".42"
-              />
-              <path
-                d="M60 1520 C120 1502 240 1510 316 1520 C348 1524 340 1542 314 1536"
-                opacity=".4"
-              />
-              <path
-                d="M1180 1980 C1260 1996 1300 2024 1272 2050 C1252 2068 1238 2050 1250 2038"
-                opacity=".38"
-              />
-            </svg>
-
-            {filtered && (
-              <FilterStrip
-                chips={chips}
-                shownCount={d.total}
-                totalCount={rows.length}
-                onReset={resetFilters}
-              />
-            )}
-
-            <Overview
-              totalApps={rows.length.toLocaleString()}
-              totalAppsSub={
-                filtered ? `${d.total.toLocaleString()} match current filter` : '- keep going'
-              }
-              cdWeeks={Math.floor(cdDays / 7)}
-              cdDays={cdDays}
-              cdDaysExtra={cdDays % 7}
-              cdTargetLabel={`${MONTHS[target.getMonth()]} ${target.getDate()}, ${target.getFullYear()}`}
-              dayNumber={pipCount}
+        <div className="page" style={{ position: 'relative', maxWidth: 1360, margin: '0 auto' }}>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 1360 2400"
+            preserveAspectRatio="none"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              zIndex: -1,
+              pointerEvents: 'none',
+            }}
+            fill="none"
+            stroke="#8a9db0"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            <path d="M40 360 C260 344 620 372 880 356 C1030 347 1200 366 1320 354" opacity=".4" />
+            <path
+              d="M980 760 C1080 748 1180 762 1240 800 C1272 820 1252 836 1236 822"
+              opacity=".42"
             />
-
-            <Pipeline
-              stages={stages}
-              exits={exits}
-              momentum={mo}
-              daily={dailyMo}
-              hours={hours}
-              onToggleStage={toggleStage}
-              onToggleClosed={toggleClosed}
-              onToggleStatus={(s) => toggleFilter('statuses', s)}
+            <path
+              d="M60 1520 C120 1502 240 1510 316 1520 C348 1524 340 1542 314 1536"
+              opacity=".4"
             />
-
-            <ApplicationsTable
-              rows={pageRows}
-              total={sorted.length}
-              unfilteredTotal={rows.length}
-              pasteKey={isMac ? '⌘' : 'Ctrl'}
-              search={search}
-              onSearch={(v) => {
-                setSearch(v);
-                setPage(1);
-              }}
-              sortKey={sortKey}
-              sortDir={sortDir}
-              onSort={onSort}
-              expanded={expanded}
-              onToggleExpand={(id) =>
-                setExpanded((e) => {
-                  const next = { ...e };
-                  if (next[id]) delete next[id];
-                  else next[id] = true;
-                  return next;
-                })
-              }
-              dateEdit={dateEdit}
-              onDateFocus={(id, current) => setDateEdit((e) => ({ ...e, [id]: current }))}
-              onDateInput={(id, v) => setDateEdit((e) => ({ ...e, [id]: v }))}
-              onDateCommit={onDateCommit}
-              onStatusChange={onStatusChange}
-              onNotesChange={onNotesChange}
-              onEdit={startEdit}
-              onDelete={deleteRow}
-              onPickSkill={(s) => toggleFilter('skills', s)}
-              pageInfo={
-                sorted.length
-                  ? `Showing ${start + 1}–${Math.min(start + PAGE_SIZE, sorted.length)} of ${sorted.length}`
-                  : '0 results'
-              }
-              page={currentPage}
-              totalPages={totalPages}
-              onPrev={() => setPage((x) => Math.max(1, x - 1))}
-              onNext={() => setPage((x) => Math.min(totalPages, x + 1))}
+            <path
+              d="M1180 1980 C1260 1996 1300 2024 1272 2050 C1252 2068 1238 2050 1250 2038"
+              opacity=".38"
             />
+          </svg>
 
-            <section style={section}>
-              <div style={sectionHeadingRow}>
-                <h2 style={sectionHeading}>Breakdowns</h2>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                <Donut
-                  title="BY INDUSTRY"
-                  subtitle="share of applications"
-                  arcs={industries}
-                  onPick={(n) => toggleFilter('industries', n)}
-                />
-                <Donut
-                  title="TOP SKILLS"
-                  subtitle="share of mentions"
-                  arcs={skills}
-                  onPick={(n) => toggleFilter('skills', n)}
-                />
-                <LocationMap
-                  cities={cities}
-                  scope={mapScope}
-                  onScope={setMapScope}
-                  selectedLocations={filter.locations}
-                  onPick={onPickCity}
-                  picked={picked}
-                  onClearPick={clearPickedCity}
-                  caption={mapCaption(visible)}
-                />
-              </div>
-            </section>
-          </div>
-        </>
-      )}
+          {filtered && (
+            <FilterStrip
+              chips={chips}
+              shownCount={d.total}
+              totalCount={rows.length}
+              onReset={resetFilters}
+            />
+          )}
+
+          <Overview
+            totalApps={rows.length.toLocaleString()}
+            totalAppsSub={
+              filtered ? `${d.total.toLocaleString()} match current filter` : '- keep going'
+            }
+            cdWeeks={Math.floor(cdDays / 7)}
+            cdDays={cdDays}
+            cdDaysExtra={cdDays % 7}
+            cdTargetLabel={`${MONTHS[target.getMonth()]} ${target.getDate()}, ${target.getFullYear()}`}
+            dayNumber={pipCount}
+          />
+
+          <Pipeline
+            stages={stages}
+            exits={exits}
+            momentum={mo}
+            daily={dailyMo}
+            hours={hours}
+            onToggleStage={toggleStage}
+            onToggleClosed={toggleClosed}
+            onToggleStatus={(s) => toggleFilter('statuses', s)}
+          />
+
+          <ApplicationsTable
+            rows={pageRows}
+            total={sorted.length}
+            unfilteredTotal={rows.length}
+            pasteKey={isMac ? '⌘' : 'Ctrl'}
+            search={search}
+            onSearch={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={onSort}
+            expanded={expanded}
+            onToggleExpand={(id) =>
+              setExpanded((e) => {
+                const next = { ...e };
+                if (next[id]) delete next[id];
+                else next[id] = true;
+                return next;
+              })
+            }
+            dateEdit={dateEdit}
+            onDateFocus={(id, current) => setDateEdit((e) => ({ ...e, [id]: current }))}
+            onDateInput={(id, v) => setDateEdit((e) => ({ ...e, [id]: v }))}
+            onDateCommit={onDateCommit}
+            onStatusChange={onStatusChange}
+            onNotesChange={onNotesChange}
+            onEdit={startEdit}
+            onDelete={deleteRow}
+            onPickSkill={(s) => toggleFilter('skills', s)}
+            pageInfo={
+              sorted.length
+                ? `Showing ${start + 1}–${Math.min(start + PAGE_SIZE, sorted.length)} of ${sorted.length}`
+                : '0 results'
+            }
+            page={currentPage}
+            totalPages={totalPages}
+            onPrev={() => setPage((x) => Math.max(1, x - 1))}
+            onNext={() => setPage((x) => Math.min(totalPages, x + 1))}
+          />
+
+          <section style={section}>
+            <div style={sectionHeadingRow}>
+              <h2 style={sectionHeading}>Breakdowns</h2>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <Donut
+                title="BY INDUSTRY"
+                subtitle="share of applications"
+                arcs={industries}
+                onPick={(n) => toggleFilter('industries', n)}
+              />
+              <Donut
+                title="TOP SKILLS"
+                subtitle="share of mentions"
+                arcs={skills}
+                onPick={(n) => toggleFilter('skills', n)}
+              />
+              <LocationMap
+                cities={cities}
+                scope={mapScope}
+                onScope={setMapScope}
+                selectedLocations={filter.locations}
+                onPick={onPickCity}
+                picked={picked}
+                onClearPick={clearPickedCity}
+                caption={mapCaption(visible)}
+              />
+            </div>
+          </section>
+        </div>
+      </div>
 
       <ToolRail
         tools={[
