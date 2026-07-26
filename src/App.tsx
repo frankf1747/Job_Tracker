@@ -85,13 +85,17 @@ const SAMPLE_COMPANIES: Company[] = [
   {
     id: 'sample-1',
     name: 'Regeneron',
-    notes: 'Referral — Priya (alum). Biostatistics team hiring in spring.',
+    notes: 'Referral — @Priya Menon (alum). Biostatistics team hiring in spring.',
+    reachedOut: false,
+    scheduledOn: '',
     createdAt: Date.now(),
   },
   {
     id: 'sample-2',
     name: 'Ramp',
-    notes: 'Watch careers page — data roles open periodically.',
+    notes: 'Intro from @Sam Ortiz — watch careers page for data roles.',
+    reachedOut: true,
+    scheduledOn: '',
     createdAt: Date.now() - 86_400_000,
   },
 ];
@@ -257,7 +261,14 @@ export default function App({ source }: { source: DataSource }) {
     async (name: string, notes: string) => {
       if (!userId) {
         setCompanies((cs) => [
-          { id: crypto.randomUUID(), name, notes, createdAt: Date.now() },
+          {
+            id: crypto.randomUUID(),
+            name,
+            notes,
+            reachedOut: false,
+            scheduledOn: '',
+            createdAt: Date.now(),
+          },
           ...cs,
         ]);
         return;
@@ -280,6 +291,21 @@ export default function App({ source }: { source: DataSource }) {
       updateCompany(id, { name }).catch(() => {
         setCompanies((cs) => cs.map((c) => (c.id === id ? prev : c)));
         showToast(`Couldn't rename ${prev.name}.`, 'error');
+      });
+    },
+    [userId, showToast],
+  );
+
+  // The reached-out toggle and scheduled date are discrete, so they persist
+  // immediately (unlike notes), still optimistic with rollback.
+  const patchCompany = useCallback(
+    (id: string, patch: Partial<Pick<Company, 'reachedOut' | 'scheduledOn'>>) => {
+      const prev = companiesRef.current.find((c) => c.id === id);
+      setCompanies((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+      if (!userId || !prev) return;
+      updateCompany(id, patch).catch(() => {
+        setCompanies((cs) => cs.map((c) => (c.id === id ? prev : c)));
+        showToast(`Couldn't update ${prev.name}.`, 'error');
       });
     },
     [userId, showToast],
@@ -971,6 +997,7 @@ export default function App({ source }: { source: DataSource }) {
           onAdd={addCompany}
           onRename={renameCompany}
           onNotes={noteCompany}
+          onPatch={patchCompany}
           onDelete={removeCompany}
           onReload={loadCompanies}
         />

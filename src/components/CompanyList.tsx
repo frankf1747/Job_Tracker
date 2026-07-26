@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Company } from '../data/companies';
+import { MentionNotes } from './MentionNotes';
 import { SANS, SERIF, microLabel } from './styles';
+
+/** Shared grid track for the header and every row, so columns line up. */
+const COLS = 'minmax(140px, 200px) 1fr 150px 44px 30px';
 
 /**
  * A standalone page for target companies and outreach notes — places to apply
@@ -15,6 +19,7 @@ export function CompanyList({
   onAdd,
   onRename,
   onNotes,
+  onPatch,
   onDelete,
   onReload,
 }: {
@@ -23,6 +28,7 @@ export function CompanyList({
   onAdd: (name: string, notes: string) => Promise<void>;
   onRename: (id: string, name: string) => void;
   onNotes: (id: string, notes: string) => void;
+  onPatch: (id: string, patch: { reachedOut?: boolean; scheduledOn?: string }) => void;
   onDelete: (id: string) => void;
   onReload: () => void;
 }) {
@@ -60,7 +66,7 @@ export function CompanyList({
     >
       <div
         style={{
-          maxWidth: 940,
+          maxWidth: 1040,
           margin: '0 auto',
           padding: '54px 34px 90px',
         }}
@@ -205,7 +211,7 @@ export function CompanyList({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'minmax(160px, 240px) 1fr 34px',
+                gridTemplateColumns: COLS,
                 gap: 12,
                 padding: '10px 14px',
                 borderBottom: '1px solid #e2dccd',
@@ -219,6 +225,8 @@ export function CompanyList({
             >
               <span>COMPANY</span>
               <span>NOTES</span>
+              <span>SCHEDULED</span>
+              <span style={{ textAlign: 'center' }}>DONE</span>
               <span />
             </div>
             {companies.map((c, i) => (
@@ -228,6 +236,7 @@ export function CompanyList({
                 striped={i % 2 === 1}
                 onRename={onRename}
                 onNotes={onNotes}
+                onPatch={onPatch}
                 onDelete={onDelete}
               />
             ))}
@@ -243,12 +252,14 @@ function CompanyRow({
   striped,
   onRename,
   onNotes,
+  onPatch,
   onDelete,
 }: {
   company: Company;
   striped: boolean;
   onRename: (id: string, name: string) => void;
   onNotes: (id: string, notes: string) => void;
+  onPatch: (id: string, patch: { reachedOut?: boolean; scheduledOn?: string }) => void;
   onDelete: (id: string) => void;
 }) {
   const [name, setName] = useState(company.name);
@@ -278,10 +289,10 @@ function CompanyRow({
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'minmax(160px, 240px) 1fr 34px',
+        gridTemplateColumns: COLS,
         gap: 12,
         padding: '8px 14px',
-        alignItems: 'center',
+        alignItems: 'start',
         background: striped ? '#f6f2ea' : 'transparent',
         borderBottom: '1px solid #ece7db',
       }}
@@ -295,19 +306,49 @@ function CompanyRow({
         }}
         aria-label={`Company name for ${company.name}`}
         className="company-cell"
-        style={{ ...rowInput, fontWeight: 600, color: '#2c3640' }}
+        style={{
+          ...rowInput,
+          fontWeight: 600,
+          // A reached-out company reads as handled.
+          color: company.reachedOut ? '#9aa3ad' : '#2c3640',
+          textDecoration: company.reachedOut ? 'line-through' : 'none',
+        }}
       />
-      <input
+
+      <MentionNotes
         value={notes}
-        onChange={(e) => {
-          setNotes(e.target.value);
-          onNotes(company.id, e.target.value);
+        onChange={(next) => {
+          setNotes(next);
+          onNotes(company.id, next);
         }}
         placeholder="add a note…"
-        aria-label={`Company notes for ${company.name}`}
-        className="company-cell"
-        style={rowInput}
+        ariaLabel={`Company notes for ${company.name}`}
       />
+
+      <input
+        type="date"
+        value={company.scheduledOn}
+        onChange={(e) => onPatch(company.id, { scheduledOn: e.target.value })}
+        aria-label={`Scheduled date for ${company.name}`}
+        className="company-cell"
+        style={{
+          ...rowInput,
+          colorScheme: 'light',
+          color: company.scheduledOn ? '#37414c' : '#9aa3ad',
+        }}
+      />
+
+      <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 5 }}>
+        <input
+          type="checkbox"
+          checked={company.reachedOut}
+          onChange={(e) => onPatch(company.id, { reachedOut: e.target.checked })}
+          aria-label={`Reached out to ${company.name}`}
+          title="Reached out"
+          style={{ width: 16, height: 16, cursor: 'pointer' }}
+        />
+      </div>
+
       <button
         onClick={() => (armed ? onDelete(company.id) : setArmed(true))}
         onBlur={() => setArmed(false)}
