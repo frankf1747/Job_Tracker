@@ -17,7 +17,7 @@ export function ReviewModal({
   review,
   mode,
   resumes,
-  onCreateResume,
+  onStageResume,
   onPatch,
   onAddSkill,
   onRemoveSkill,
@@ -30,8 +30,8 @@ export function ReviewModal({
   mode: 'add' | 'edit';
   /** The user's resume list, managed in the Resumes panel. */
   resumes: Resume[];
-  /** Creates a resume without leaving the modal. Resolves once it is saved. */
-  onCreateResume: (r: NewResume) => Promise<void>;
+  /** Stages a new resume against the draft; it is persisted when the row saves. */
+  onStageResume: (r: NewResume) => void;
   onPatch: (patch: Partial<Draft>) => void;
   onAddSkill: () => void;
   onRemoveSkill: (index: number) => void;
@@ -331,8 +331,12 @@ export function ReviewModal({
             <ResumeField
               value={review.resume}
               resumes={resumes}
+              autoLabel={[review.position, review.company]
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .join(' — ')}
               onSelect={(resume) => onPatch({ resume })}
-              onCreate={onCreateResume}
+              onStage={onStageResume}
             />
           </div>
         </div>

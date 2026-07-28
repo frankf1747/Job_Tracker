@@ -161,6 +161,9 @@ export default function App({ source }: { source: DataSource }) {
   const [mapScope, setMapScope] = useState<MapScope>('all');
   const [parsing, setParsing] = useState(false);
   const [review, setReview] = useState<Draft | null>(null);
+  // A resume added in the modal but not yet written: it is persisted only when
+  // the application saves, so an abandoned draft leaves no orphan resume behind.
+  const [pendingResume, setPendingResume] = useState<NewResume | null>(null);
   // The row being edited, or null when the modal is adding a new one.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -238,6 +241,15 @@ export default function App({ source }: { source: DataSource }) {
     },
     [updateResumes],
   );
+
+  /**
+   * Hold a resume created in the review modal against the draft, selecting it,
+   * without writing anything yet. saveReview persists it once the row is saved.
+   */
+  const stageResume = useCallback((nr: NewResume) => {
+    setPendingResume(nr);
+    setReview((r) => (r ? { ...r, resume: nr.label } : r));
+  }, []);
 
   // ---------- company list ----------
   const loadCompanies = useCallback(() => {
@@ -610,6 +622,7 @@ export default function App({ source }: { source: DataSource }) {
   const closeReview = useCallback(() => {
     setReview(null);
     setEditingId(null);
+    setPendingResume(null);
   }, []);
 
   /**
@@ -649,6 +662,14 @@ export default function App({ source }: { source: DataSource }) {
     };
 
     try {
+      // Persist the modal's staged resume first, so the row's label points at a
+      // record that exists. Guarded by the label so a resume that was staged and
+      // then replaced by an existing pick is never written.
+      if (pendingResume && pendingResume.label === review.resume) {
+        await createResume(pendingResume);
+        setPendingResume(null);
+      }
+
       if (editingId) {
         if (userId) await updateApplication(editingId, fields);
         setRows((rs) => rs.map((r) => (r.id === editingId ? { ...r, ...fields, ...derived } : r)));
@@ -671,7 +692,7 @@ export default function App({ source }: { source: DataSource }) {
     } finally {
       setSaving(false);
     }
-  }, [review, editingId, userId, showToast, closeReview]);
+  }, [review, editingId, userId, showToast, closeReview, pendingResume, createResume]);
 
   // ---------- derived ----------
   const visible = useMemo(() => filterRows(rows, filter, search), [rows, filter, search]);
@@ -1014,7 +1035,7 @@ export default function App({ source }: { source: DataSource }) {
           review={review}
           mode={editingId ? 'edit' : 'add'}
           resumes={resumes}
-          onCreateResume={createResume}
+          onStageResume={stageResume}
           saving={saving}
           onPatch={(patch) => setReview((r) => (r ? { ...r, ...patch } : r))}
           onAddSkill={() =>
