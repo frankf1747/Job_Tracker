@@ -22,10 +22,10 @@ function uniqueLabel(base: string, taken: Resume[]): string {
  * The resume picker, with a creator folded into it.
  *
  * A resume is often written for the role being logged, so requiring a trip to
- * the Resumes panel first would mean abandoning a half-filled application. That
- * common case is made frictionless: attaching a PDF *is* the whole action — the
- * resume is filed against this one application under an auto-derived name, with
- * no field to fill and no button to press. Only "Keep for future use", which
+ * the Resumes panel first would mean abandoning a half-filled application. The
+ * creator is a two-step flow that keeps the common case light: attach the PDF
+ * first, then decide. Left alone, it is filed against this one application under
+ * an auto-derived name — no field to fill. Only "Keep for future use", which
  * promotes it into the reusable dropdown, asks for a name worth recognising.
  *
  * Nothing here touches storage. The creator only *stages* the resume; it is
@@ -63,21 +63,30 @@ export function ResumeField({
     setError(null);
   };
 
-  /**
-   * Stage the resume against the draft. File and the role-only flag come as
-   * arguments, not from state, so the callers that stage the instant a file is
-   * dropped or the checkbox flips don't read a value React hasn't applied yet.
-   */
-  const stage = (opts?: { file?: File; tailored?: boolean }) => {
-    const f = opts?.file ?? file;
-    const roleOnly = opts?.tailored ?? tailored;
+  const takeFile = (f: File | undefined) => {
+    if (!f) return;
+    if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) {
+      setError('Only PDF files can be attached.');
+      return;
+    }
+    if (f.size > MAX_PDF_BYTES) {
+      setError(`That file is ${prettySize(f.size)} — the limit is 10 MB.`);
+      return;
+    }
+    setError(null);
+    setFile(f);
+  };
+
+  /** Stage the attached resume against the draft. Reached only via Done. */
+  const stage = () => {
+    if (!file) return;
 
     let name: string;
-    if (roleOnly) {
+    if (tailored) {
       // Never asked for; derived so the row and the Resumes panel have something
       // to show. The filename is a fallback for the rare blank posting.
       const base =
-        autoLabel.trim() || (f?.name ?? '').replace(/\.pdf$/i, '').trim() || 'Untitled resume';
+        autoLabel.trim() || file.name.replace(/\.pdf$/i, '').trim() || 'Untitled resume';
       name = uniqueLabel(base, resumes);
     } else {
       name = label.trim();
@@ -91,25 +100,8 @@ export function ResumeField({
       }
     }
 
-    onStage({ label: name, tailored: roleOnly, file: f });
+    onStage({ label: name, tailored, file });
     reset();
-  };
-
-  const takeFile = (f: File | undefined) => {
-    if (!f) return;
-    if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) {
-      setError('Only PDF files can be attached.');
-      return;
-    }
-    if (f.size > MAX_PDF_BYTES) {
-      setError(`That file is ${prettySize(f.size)} — the limit is 10 MB.`);
-      return;
-    }
-    setError(null);
-    // Role-only: the attach is the whole action, so stage it right away. Future
-    // resumes wait, since they still need a name and a deliberate save.
-    if (tailored) stage({ file: f, tailored: true });
-    else setFile(f);
   };
 
   if (!creating) {
@@ -144,53 +136,7 @@ export function ResumeField({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <span style={microLabel}>New resume</span>
 
-      <label
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          fontFamily: SANS,
-          fontSize: 11.5,
-          color: '#5f6a75',
-          cursor: 'pointer',
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={future}
-          onChange={(e) => {
-            const keep = e.target.checked;
-            setTailored(!keep);
-            // Switched back to role-only with a file already staged: stage it,
-            // rather than stranding it with no button to press.
-            if (!keep && file) stage({ file, tailored: true });
-          }}
-        />
-        Keep for future use
-      </label>
-
-      {future && (
-        <input
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              stage();
-            }
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              e.stopPropagation();
-              reset();
-            }
-          }}
-          placeholder="e.g. Analytics — Regeneron"
-          aria-label="New resume name"
-          autoFocus
-          style={input}
-        />
-      )}
-
+      {/* Step one: attach a PDF. Everything else waits until there is a file. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <button
           type="button"
@@ -224,6 +170,52 @@ export function ResumeField({
         />
       </div>
 
+      {/* Step two: only once a PDF is on. Decide whether to keep it, then name it. */}
+      {file && (
+        <>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontFamily: SANS,
+              fontSize: 11.5,
+              color: '#5f6a75',
+              cursor: 'pointer',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={future}
+              onChange={(e) => setTailored(!e.target.checked)}
+            />
+            Keep for future use
+          </label>
+
+          {future && (
+            <input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  stage();
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  reset();
+                }
+              }}
+              placeholder="e.g. Analytics — Regeneron"
+              aria-label="New resume name"
+              autoFocus
+              style={input}
+            />
+          )}
+        </>
+      )}
+
       {error && (
         <div role="alert" style={{ fontFamily: SANS, fontSize: 11.5, color: '#a35242' }}>
           {error}
@@ -231,10 +223,10 @@ export function ResumeField({
       )}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        {future && (
+        {file && (
           <button
             type="button"
-            onClick={() => stage()}
+            onClick={stage}
             style={{
               background: '#41678a',
               border: '1px solid #41678a',
@@ -245,7 +237,7 @@ export function ResumeField({
               color: '#f4f2ec',
             }}
           >
-            Add resume
+            Done
           </button>
         )}
         <button
