@@ -399,10 +399,12 @@ export function ApplicationsTable(p: TableProps) {
                           color: '#8b939e',
                           fontFamily: SANS,
                           fontSize: 10.5,
-                          whiteSpace: 'nowrap',
+                          maxWidth: 180,
                         }}
                       >
-                        {r.resume}
+                        <span style={{ ...truncate, display: 'inline-block', maxWidth: 180 }} title={r.resume}>
+                          {r.resume}
+                        </span>
                       </td>
 
                       <td style={{ padding: '6px 14px 6px 12px' }}>
