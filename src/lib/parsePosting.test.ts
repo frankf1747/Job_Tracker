@@ -202,6 +202,40 @@ describe('a real LinkedIn markdown paste', () => {
   });
 });
 
+/**
+ * A Workday paste from an already-applied posting. The head is nothing but
+ * furniture — the confirmation line, "View Application", "locations", a bare
+ * location code — and the employer's name shows up only in the body prose,
+ * "At Agilent, we ...". The old head-line scan stopped on "View Application".
+ */
+const WORKDAY_APPLIED = `Advanced Data Analyst
+You applied for this job on July 26, 2026.
+View Application
+locations
+US-DE-Wilmington
+Option to Work Remote in Germany
+time type
+Full time
+posted on
+Posted 10 Days Ago
+job requisition id
+4038648
+At Agilent, we are committed to advancing the quality of life. We are seeking an
+Advanced Data Analyst to join our global analytics team, leveraging Microsoft
+Fabric, Power BI, and Snowflake. Strong hands-on experience with SQL and Python.`;
+
+describe('a Workday paste from an already-applied posting', () => {
+  const d = parse(WORKDAY_APPLIED);
+
+  test('names the employer from the body, not the "View Application" furniture', () => {
+    expect(d.company).toBe('Agilent');
+  });
+
+  test('still reads the job title', () => {
+    expect(d.position).toBe('Advanced Data Analyst');
+  });
+});
+
 describe('stripMarkdownLinks', () => {
   test('keeps the label and captures the target', () => {
     const { text, links } = stripMarkdownLinks('[Acme](https://acme.com/jobs/1) is hiring');

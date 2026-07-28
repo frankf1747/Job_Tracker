@@ -118,10 +118,13 @@ const ROLE_RE =
 
 /** Job-board furniture that is never the company or the position. */
 const BOILERPLATE =
-  /^(save|saved|apply|easy apply|about the job|about us|about the role|job purpose|job description|promoted|posted|reposted|show more|see more|did you finish|responses managed|people you can reach|hiring|be an early applicant|no longer accepting|full[-\s]?time|part[-\s]?time|contract|temporary|internship|on-?site|remote|hybrid|entry level|mid-senior|associate level|\d+ (applicant|people))/i;
+  /^(save|saved|apply|easy apply|about the job|about us|about the role|job purpose|job description|promoted|posted|reposted|show more|see more|did you finish|responses managed|people you can reach|hiring|be an early applicant|no longer accepting|full[-\s]?time|part[-\s]?time|contract|temporary|internship|on-?site|remote|hybrid|entry level|mid-senior|associate level|\d+ (applicant|people)|you applied for this job|view application|view all|locations?|time type|job requisition id|option to work remote)/i;
 
 /** A line that is only a place, e.g. "Toronto, ON · 6 days ago". */
 const LOCATION_LINE = /^[A-Za-z.\-' ]{2,30},\s*[A-Z]{2}\b/;
+
+/** A Workday location code that is a line to itself, e.g. "US-DE-Wilmington". */
+const LOCATION_CODE = /^[A-Za-z]{2,}-[A-Za-z]{2,}-[A-Za-z]/;
 
 const INDUSTRY_TESTS: [RegExp, string][] = [
   [/healthcare|clinic|patient|hospital|pharma/i, 'Healthcare'],
@@ -206,7 +209,7 @@ function looksLikeRole(line: string) {
 }
 
 function looksLikeLocation(line: string) {
-  return LOCATION_LINE.test(line) || /\bremote\b/i.test(line);
+  return LOCATION_LINE.test(line) || LOCATION_CODE.test(line) || /\bremote\b/i.test(line);
 }
 
 /** A line that is only the logo's alt text, carrying no company name. */
@@ -257,10 +260,11 @@ export function guessCompany(lines: string[], text: string): string {
     return clean(l);
   }
 
-  // "... Intern at Hooli Systems". Capitalised words only, and spaces rather
-  // than \s, so it stops at a sentence break or a line end instead of
-  // swallowing the start of the next paragraph.
-  const at = text.match(/\bat[ \t]+([A-Z][A-Za-z0-9&'-]*(?:[ \t]+[A-Z][A-Za-z0-9&'-]*){0,3})/);
+  // "... Intern at Hooli Systems", or a description that opens "At Agilent, we
+  // ...". Either case of the anchor, but the captured name stays capitalised, so
+  // "at the forefront" cannot pass as a company. Spaces rather than \s, so it
+  // stops at a sentence break or a line end instead of swallowing the next line.
+  const at = text.match(/\b[Aa]t[ \t]+([A-Z][A-Za-z0-9&'-]*(?:[ \t]+[A-Z][A-Za-z0-9&'-]*){0,3})/);
   if (at) return clean(at[1]);
 
   // Deliberately no document-wide fallback: an editable placeholder beats
