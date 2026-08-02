@@ -1,35 +1,56 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Resume } from '../data/resumeStore';
-import { deleteResumeFile, getResumeFile, makeResume, putResumeFile } from '../data/resumeStore';
+import { MAX_PDF_BYTES, prettySize } from '../lib/resumeOptions';
 import { SANS, microLabel } from './styles';
-
-const MAX_PDF_BYTES = 10 * 1024 * 1024;
-
-function prettySize(bytes: number): string {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
 
 /**
  * Manage the list of resume versions and the PDF attached to each.
  *
- * The labels here populate the resume dropdown in the review modal, so renaming
- * one is a rename everywhere — rows keep referring to it by label.
+ * The panel is storage-agnostic: it calls the operations passed in and shows
+ * what comes back. App points those at Supabase when signed in and at the
+ * browser when not, so the same panel serves both. The labels here populate the
+ * resume dropdown in the review modal, so renaming one is a rename everywhere —
+ * rows keep referring to it by label.
  */
 export function ResumePanel({
   resumes,
-  onChange,
+  live,
+  loading,
+  importing,
+  onAdd,
+  onRename,
+  onToggleTailored,
+  onDelete,
+  onAttach,
+  onDetach,
+  onOpenFile,
+  onImport,
   onClose,
 }: {
   resumes: Resume[];
-  onChange: (next: Resume[]) => void;
+  /** Signed in: resumes persist to the account, and importing is offered. */
+  live: boolean;
+  loading: boolean;
+  importing: boolean;
+  onAdd: (label: string) => Promise<void>;
+  onRename: (id: string, label: string) => Promise<void>;
+  onToggleTailored: (id: string, tailored: boolean) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onAttach: (id: string, file: File) => Promise<void>;
+  onDetach: (id: string) => Promise<void>;
+  onOpenFile: (id: string) => Promise<Blob | null>;
+  onImport: () => Promise<number>;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showRole, setShowRole] = useState(false);
+  // In-progress rename text, per row. Kept local so typing stays smooth and the
+  // rename commits once on blur rather than on every keystroke — the latter
+  // would be a database write per character when signed in.
+  const [edits, setEdits] = useState<Record<string, string>>({});
   const fileFor = useRef<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -41,7 +62,20 @@ export function ResumePanel({
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const add = () => {
+  /** Run a row operation with a busy marker and a single error surface. */
+  const run = async (id: string, fn: () => Promise<void>) => {
+    setBusyId(id);
+    setError(null);
+    try {
+      await fn();
+    } catch {
+      setError("Couldn't save that change. Please try again.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const add = async () => {
     const label = draft.trim();
     if (!label) return;
     if (resumes.some((r) => r.label.toLowerCase() === label.toLowerCase())) {
@@ -49,25 +83,27 @@ export function ResumePanel({
       return;
     }
     setError(null);
-    onChange([...resumes, makeResume(label)]);
-    setDraft('');
+    setNotice(null);
+    try {
+      await onAdd(label);
+      setDraft('');
+    } catch {
+      setError("Couldn't add that resume. Please try again.");
+    }
   };
 
-  const rename = (id: string, label: string) =>
-    onChange(
-      resumes.map((r) => (r.id === id ? { ...r, label, updatedAt: new Date().toISOString() } : r)),
-    );
-
-  const setTailored = (id: string, tailored: boolean) =>
-    onChange(
-      resumes.map((r) =>
-        r.id === id ? { ...r, tailored, updatedAt: new Date().toISOString() } : r,
-      ),
-    );
-
-  const remove = async (id: string) => {
-    await deleteResumeFile(id);
-    onChange(resumes.filter((r) => r.id !== id));
+  const commitRename = async (r: Resume) => {
+    const next = (edits[r.id] ?? r.label).trim();
+    setEdits((e) => {
+      const { [r.id]: _drop, ...rest } = e;
+      return rest;
+    });
+    if (!next || next === r.label) return;
+    if (resumes.some((o) => o.id !== r.id && o.label.toLowerCase() === next.toLowerCase())) {
+      setError('You already have a resume with that name.');
+      return;
+    }
+    await run(r.id, () => onRename(r.id, next));
   };
 
   const pickFile = (id: string) => {
@@ -80,7 +116,6 @@ export function ResumePanel({
     const id = fileFor.current;
     fileFor.current = null;
     if (!file || !id) return;
-
     if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
       setError('Only PDF files can be attached.');
       return;
@@ -89,31 +124,12 @@ export function ResumePanel({
       setError(`That file is ${prettySize(file.size)} — the limit is 10 MB.`);
       return;
     }
-
-    setBusyId(id);
-    try {
-      await putResumeFile(id, file);
-      onChange(
-        resumes.map((r) =>
-          r.id === id
-            ? {
-                ...r,
-                fileName: file.name,
-                fileSize: file.size,
-                updatedAt: new Date().toISOString(),
-              }
-            : r,
-        ),
-      );
-    } catch {
-      setError("Couldn't save that file. Your browser may be blocking local storage.");
-    } finally {
-      setBusyId(null);
-    }
+    await run(id, () => onAttach(id, file));
   };
 
   const openPdf = async (id: string) => {
-    const blob = await getResumeFile(id);
+    setError(null);
+    const blob = await onOpenFile(id).catch(() => null);
     if (!blob) {
       setError('That file is no longer stored. Try attaching it again.');
       return;
@@ -124,15 +140,19 @@ export function ResumePanel({
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
-  const detach = async (id: string) => {
-    await deleteResumeFile(id);
-    onChange(
-      resumes.map((r) =>
-        r.id === id
-          ? { ...r, fileName: undefined, fileSize: undefined, updatedAt: new Date().toISOString() }
-          : r,
-      ),
-    );
+  const runImport = async () => {
+    setError(null);
+    setNotice(null);
+    try {
+      const added = await onImport();
+      setNotice(
+        added === 0
+          ? 'Nothing new to import — this browser has no resumes not already on your account.'
+          : `Imported ${added} resume${added === 1 ? '' : 's'} from this browser to your account.`,
+      );
+    } catch {
+      setError("Couldn't import from this browser. Please try again.");
+    }
   };
 
   // Split so the picker's contents (general) sit apart from role-specific
@@ -157,8 +177,12 @@ export function ResumePanel({
       }}
     >
       <input
-        value={r.label}
-        onChange={(e) => rename(r.id, e.target.value)}
+        value={edits[r.id] ?? r.label}
+        onChange={(e) => setEdits((prev) => ({ ...prev, [r.id]: e.target.value }))}
+        onBlur={() => void commitRename(r)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+        }}
         aria-label={`Name for ${r.label}`}
         style={{
           flex: 1,
@@ -174,7 +198,7 @@ export function ResumePanel({
       />
 
       <button
-        onClick={() => setTailored(r.id, !r.tailored)}
+        onClick={() => void run(r.id, () => onToggleTailored(r.id, !r.tailored))}
         aria-label={r.tailored ? 'Make general' : 'Make role-only'}
         title={r.tailored ? 'Make general' : 'Make role-only'}
         style={{
@@ -193,7 +217,7 @@ export function ResumePanel({
 
       {r.fileName ? (
         <button
-          onClick={() => openPdf(r.id)}
+          onClick={() => void openPdf(r.id)}
           title={`${r.fileName}${r.fileSize ? ' · ' + prettySize(r.fileSize) : ''}`}
           style={{
             background: '#e7edf3',
@@ -219,7 +243,7 @@ export function ResumePanel({
       )}
 
       <button
-        onClick={() => (r.fileName ? detach(r.id) : pickFile(r.id))}
+        onClick={() => (r.fileName ? void run(r.id, () => onDetach(r.id)) : pickFile(r.id))}
         disabled={busyId === r.id}
         style={{
           background: 'transparent',
@@ -235,7 +259,7 @@ export function ResumePanel({
       </button>
 
       <button
-        onClick={() => remove(r.id)}
+        onClick={() => void run(r.id, () => onDelete(r.id))}
         aria-label={`Delete ${r.label}`}
         title="Delete"
         style={{
@@ -329,17 +353,23 @@ export function ResumePanel({
         </div>
 
         <div style={{ padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {resumes.length === 0 && (
-            <div
-              style={{
-                padding: '22px 0',
-                textAlign: 'center',
-                color: '#9aa3ad',
-                fontSize: 13,
-              }}
-            >
-              No resumes yet — add your first below.
+          {loading ? (
+            <div style={{ padding: '22px 0', textAlign: 'center', color: '#9aa3ad', fontSize: 13 }}>
+              Loading your resumes…
             </div>
+          ) : (
+            resumes.length === 0 && (
+              <div
+                style={{
+                  padding: '22px 0',
+                  textAlign: 'center',
+                  color: '#9aa3ad',
+                  fontSize: 13,
+                }}
+              >
+                No resumes yet — add your first below.
+              </div>
+            )
           )}
 
           {general.map((r) => renderRow(r))}
@@ -385,6 +415,21 @@ export function ResumePanel({
             </div>
           )}
 
+          {notice && (
+            <div
+              style={{
+                background: '#e7edf3',
+                border: '1px solid #cfdce6',
+                color: '#3f6079',
+                borderRadius: 6,
+                padding: '8px 11px',
+                fontSize: 12.5,
+              }}
+            >
+              {notice}
+            </div>
+          )}
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 4 }}>
             <span style={microLabel}>Add a version</span>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -394,7 +439,7 @@ export function ResumePanel({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    add();
+                    void add();
                   }
                 }}
                 placeholder="e.g. Analytics v4"
@@ -408,7 +453,7 @@ export function ResumePanel({
                 }}
               />
               <button
-                onClick={add}
+                onClick={() => void add()}
                 style={{
                   background: '#41678a',
                   border: '1px solid #41678a',
@@ -437,8 +482,31 @@ export function ResumePanel({
             lineHeight: 1.6,
           }}
         >
-          Stored in this browser for now. Both the list and the PDFs move to your account once the
-          database is wired up — nothing here is lost in that move.
+          {live ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => void runImport()}
+                disabled={importing}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid #ddd6c8',
+                  borderRadius: 6,
+                  padding: '6px 12px',
+                  fontSize: 11.5,
+                  color: '#41678a',
+                  flex: 'none',
+                  opacity: importing ? 0.7 : 1,
+                }}
+              >
+                {importing ? 'Importing…' : 'Import this browser’s resumes'}
+              </button>
+              <span style={{ flex: 1, minWidth: 180 }}>
+                Saved to your account — sign in on any device to find them here.
+              </span>
+            </div>
+          ) : (
+            'Stored in this browser. Sign in to save resumes to your account and reach them from any device.'
+          )}
         </div>
 
         <input

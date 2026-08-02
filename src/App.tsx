@@ -59,12 +59,13 @@ import {
 } from './data/applications';
 import {
   generalResumes,
+  getResumeFile,
   loadResumes,
-  makeResume,
-  putResumeFile,
-  saveResumes,
+  localResumeBackend,
   type Resume,
+  type ResumeBackend,
 } from './data/resumeStore';
+import { supabaseResumeBackend } from './data/resumes';
 import type { NewResume } from './components/ResumeField';
 import { supabase } from './lib/supabase';
 
@@ -169,7 +170,15 @@ export default function App({ source }: { source: DataSource }) {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [now, setNow] = useState(() => new Date());
-  const [resumes, setResumes] = useState<Resume[]>(() => loadResumes());
+  // Signed in, resumes load from Supabase (below); in sample mode they stay in
+  // this browser, seeded so the picker is never empty.
+  const [resumes, setResumes] = useState<Resume[]>(() =>
+    source.kind === 'sample' ? loadResumes() : [],
+  );
+  const [resumesLoad, setResumesLoad] = useState<'idle' | 'loading' | 'ready' | 'error'>(
+    source.kind === 'sample' ? 'ready' : 'idle',
+  );
+  const [importing, setImporting] = useState(false);
   const [panel, setPanel] = useState<'resumes' | null>(null);
   const [view, setView] = useState<'home' | 'companies'>('home');
 
@@ -186,10 +195,31 @@ export default function App({ source }: { source: DataSource }) {
     companiesRef.current = companies;
   }, [companies]);
 
-  const updateResumes = useCallback((next: Resume[]) => {
-    setResumes(next);
-    saveResumes(next);
-  }, []);
+  // Where resumes are stored: the account when signed in, this browser when not.
+  // Callers below go through this and never learn which one they got.
+  const resumeBackend: ResumeBackend = useMemo(
+    () => (userId ? supabaseResumeBackend(userId) : localResumeBackend()),
+    [userId],
+  );
+
+  // Signed in, pull the list once on load. Eager rather than lazy: the review
+  // modal's picker needs it the moment a posting is pasted.
+  useEffect(() => {
+    if (!userId) return;
+    let live = true;
+    setResumesLoad('loading');
+    resumeBackend
+      .list()
+      .then((rs) => {
+        if (!live) return;
+        setResumes(rs);
+        setResumesLoad('ready');
+      })
+      .catch(() => live && setResumesLoad('error'));
+    return () => {
+      live = false;
+    };
+  }, [userId, resumeBackend]);
 
   // The countdown and "this week" figures go stale if the tab is left open.
   useEffect(() => {
@@ -227,20 +257,99 @@ export default function App({ source }: { source: DataSource }) {
 
   /**
    * Create a resume from inside the review modal, so a role-specific rewrite
-   * doesn't force the half-filled application to be abandoned first.
+   * doesn't force the half-filled application to be abandoned first. Persists
+   * through the active backend, then mirrors it into the displayed list.
    */
   const createResume = useCallback(
-    async ({ label, tailored, file }: NewResume) => {
-      const resume = makeResume(label, tailored);
-      if (file) {
-        await putResumeFile(resume.id, file);
-        resume.fileName = file.name;
-        resume.fileSize = file.size;
-      }
-      updateResumes([...resumesRef.current, resume]);
+    async (input: NewResume) => {
+      const resume = await resumeBackend.create(input);
+      setResumes((prev) => [...prev, resume]);
     },
-    [updateResumes],
+    [resumeBackend],
   );
+
+  // The Resumes panel's edits, each persisted through the backend and then
+  // mirrored into state. Mirrored rather than refetched so a rename or a toggle
+  // doesn't cost a round trip to see itself.
+  const renameResume = useCallback(
+    async (id: string, label: string) => {
+      await resumeBackend.rename(id, label);
+      setResumes((prev) => prev.map((r) => (r.id === id ? { ...r, label } : r)));
+    },
+    [resumeBackend],
+  );
+
+  const setResumeTailored = useCallback(
+    async (id: string, tailored: boolean) => {
+      await resumeBackend.setTailored(id, tailored);
+      setResumes((prev) => prev.map((r) => (r.id === id ? { ...r, tailored } : r)));
+    },
+    [resumeBackend],
+  );
+
+  const addResume = useCallback(
+    async (label: string) => {
+      await createResume({ label, tailored: false });
+    },
+    [createResume],
+  );
+
+  const deleteResume = useCallback(
+    async (id: string) => {
+      await resumeBackend.remove(id);
+      setResumes((prev) => prev.filter((r) => r.id !== id));
+    },
+    [resumeBackend],
+  );
+
+  const attachResume = useCallback(
+    async (id: string, file: File) => {
+      const { fileName, fileSize } = await resumeBackend.attach(id, file);
+      setResumes((prev) => prev.map((r) => (r.id === id ? { ...r, fileName, fileSize } : r)));
+    },
+    [resumeBackend],
+  );
+
+  const detachResume = useCallback(
+    async (id: string) => {
+      await resumeBackend.detach(id);
+      setResumes((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, fileName: undefined, fileSize: undefined } : r)),
+      );
+    },
+    [resumeBackend],
+  );
+
+  const openResumeFile = useCallback(
+    (id: string) => resumeBackend.getFile(id),
+    [resumeBackend],
+  );
+
+  /**
+   * One-time lift of this browser's resumes onto the account. Reads the local
+   * list and its IndexedDB PDFs and re-creates each through the Supabase
+   * backend, skipping labels already present so a second run is harmless.
+   * Returns how many were added so the panel can say so.
+   */
+  const importLocalResumes = useCallback(async (): Promise<number> => {
+    const local = loadResumes();
+    const have = new Set(resumesRef.current.map((r) => r.label.toLowerCase()));
+    let added = 0;
+    for (const r of local) {
+      if (have.has(r.label.toLowerCase())) continue;
+      const blob = r.fileName ? await getResumeFile(r.id) : null;
+      const file = blob ? new File([blob], r.fileName!, { type: 'application/pdf' }) : undefined;
+      const created = await resumeBackend.create({
+        label: r.label,
+        tailored: r.tailored ?? false,
+        file,
+      });
+      setResumes((prev) => [...prev, created]);
+      have.add(r.label.toLowerCase());
+      added += 1;
+    }
+    return added;
+  }, [resumeBackend]);
 
   /**
    * Hold a resume created in the review modal against the draft, selecting it,
@@ -1025,7 +1134,28 @@ export default function App({ source }: { source: DataSource }) {
       )}
 
       {panel === 'resumes' && (
-        <ResumePanel resumes={resumes} onChange={updateResumes} onClose={() => setPanel(null)} />
+        <ResumePanel
+          resumes={resumes}
+          live={!!userId}
+          loading={resumesLoad === 'loading'}
+          importing={importing}
+          onAdd={addResume}
+          onRename={renameResume}
+          onToggleTailored={setResumeTailored}
+          onDelete={deleteResume}
+          onAttach={attachResume}
+          onDetach={detachResume}
+          onOpenFile={openResumeFile}
+          onImport={async () => {
+            setImporting(true);
+            try {
+              return await importLocalResumes();
+            } finally {
+              setImporting(false);
+            }
+          }}
+          onClose={() => setPanel(null)}
+        />
       )}
 
       {parsing && <ParsingOverlay />}
