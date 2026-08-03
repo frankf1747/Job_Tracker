@@ -16,7 +16,6 @@ export function ResumePanel({
   resumes,
   live,
   loading,
-  importing,
   onAdd,
   onRename,
   onToggleTailored,
@@ -24,34 +23,34 @@ export function ResumePanel({
   onAttach,
   onDetach,
   onOpenFile,
-  onImport,
   onClose,
 }: {
   resumes: Resume[];
-  /** Signed in: resumes persist to the account, and importing is offered. */
+  /** Signed in: resumes persist to the account rather than this browser. */
   live: boolean;
   loading: boolean;
-  importing: boolean;
-  onAdd: (label: string) => Promise<void>;
+  onAdd: (label: string, file?: File) => Promise<void>;
   onRename: (id: string, label: string) => Promise<void>;
   onToggleTailored: (id: string, tailored: boolean) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onAttach: (id: string, file: File) => Promise<void>;
   onDetach: (id: string) => Promise<void>;
   onOpenFile: (id: string) => Promise<Blob | null>;
-  onImport: () => Promise<number>;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showRole, setShowRole] = useState(false);
   // In-progress rename text, per row. Kept local so typing stays smooth and the
   // rename commits once on blur rather than on every keystroke — the latter
   // would be a database write per character when signed in.
   const [edits, setEdits] = useState<Record<string, string>>({});
+  const [addBusy, setAddBusy] = useState(false);
   const fileFor = useRef<string | null>(null);
+  // True while the file picker is open for the "Add a version" row rather than
+  // an existing row, so the one hidden input can serve both.
+  const addFile = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -83,7 +82,6 @@ export function ResumePanel({
       return;
     }
     setError(null);
-    setNotice(null);
     try {
       await onAdd(label);
       setDraft('');
@@ -112,10 +110,37 @@ export function ResumePanel({
     fileInput.current?.click();
   };
 
+  const pickAddFile = () => {
+    addFile.current = true;
+    setError(null);
+    fileInput.current?.click();
+  };
+
+  /** Add a new version whose PDF is `file`, named from the field or the file. */
+  const addWithFile = async (file: File) => {
+    const label = draft.trim() || file.name.replace(/\.pdf$/i, '').trim() || 'Resume';
+    if (resumes.some((r) => r.label.toLowerCase() === label.toLowerCase())) {
+      setError('You already have a resume with that name.');
+      return;
+    }
+    setError(null);
+    setAddBusy(true);
+    try {
+      await onAdd(label, file);
+      setDraft('');
+    } catch {
+      setError("Couldn't add that resume. Please try again.");
+    } finally {
+      setAddBusy(false);
+    }
+  };
+
   const onFile = async (file: File | undefined) => {
+    const addingVersion = addFile.current;
+    addFile.current = false;
     const id = fileFor.current;
     fileFor.current = null;
-    if (!file || !id) return;
+    if (!file) return;
     if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
       setError('Only PDF files can be attached.');
       return;
@@ -124,6 +149,11 @@ export function ResumePanel({
       setError(`That file is ${prettySize(file.size)} — the limit is 10 MB.`);
       return;
     }
+    if (addingVersion) {
+      await addWithFile(file);
+      return;
+    }
+    if (!id) return;
     await run(id, () => onAttach(id, file));
   };
 
@@ -138,21 +168,6 @@ export function ResumePanel({
     window.open(url, '_blank', 'noopener');
     // Give the new tab time to claim the blob before releasing it.
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  };
-
-  const runImport = async () => {
-    setError(null);
-    setNotice(null);
-    try {
-      const added = await onImport();
-      setNotice(
-        added === 0
-          ? 'Nothing new to import — this browser has no resumes not already on your account.'
-          : `Imported ${added} resume${added === 1 ? '' : 's'} from this browser to your account.`,
-      );
-    } catch {
-      setError("Couldn't import from this browser. Please try again.");
-    }
   };
 
   // Split so the picker's contents (general) sit apart from role-specific
@@ -415,21 +430,6 @@ export function ResumePanel({
             </div>
           )}
 
-          {notice && (
-            <div
-              style={{
-                background: '#e7edf3',
-                border: '1px solid #cfdce6',
-                color: '#3f6079',
-                borderRadius: 6,
-                padding: '8px 11px',
-                fontSize: 12.5,
-              }}
-            >
-              {notice}
-            </div>
-          )}
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 4 }}>
             <span style={microLabel}>Add a version</span>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -452,6 +452,24 @@ export function ResumePanel({
                   fontSize: 13,
                 }}
               />
+              {/* Choosing a PDF adds the version in one step — named from the
+                  field, or from the filename when it's left blank. */}
+              <button
+                onClick={pickAddFile}
+                disabled={addBusy}
+                title="Add a version with a PDF attached"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid #cfc8b9',
+                  borderRadius: 7,
+                  padding: '9px 14px',
+                  fontSize: 13,
+                  color: '#41678a',
+                  flex: 'none',
+                }}
+              >
+                {addBusy ? 'Adding…' : 'Attach PDF'}
+              </button>
               <button
                 onClick={() => void add()}
                 style={{
@@ -482,31 +500,9 @@ export function ResumePanel({
             lineHeight: 1.6,
           }}
         >
-          {live ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <button
-                onClick={() => void runImport()}
-                disabled={importing}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid #ddd6c8',
-                  borderRadius: 6,
-                  padding: '6px 12px',
-                  fontSize: 11.5,
-                  color: '#41678a',
-                  flex: 'none',
-                  opacity: importing ? 0.7 : 1,
-                }}
-              >
-                {importing ? 'Importing…' : 'Import this browser’s resumes'}
-              </button>
-              <span style={{ flex: 1, minWidth: 180 }}>
-                Saved to your account — sign in on any device to find them here.
-              </span>
-            </div>
-          ) : (
-            'Stored in this browser. Sign in to save resumes to your account and reach them from any device.'
-          )}
+          {live
+            ? 'Saved to your account — sign in on any device to find them here.'
+            : 'Stored in this browser. Sign in to save resumes to your account and reach them from any device.'}
         </div>
 
         <input

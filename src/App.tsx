@@ -59,7 +59,6 @@ import {
 } from './data/applications';
 import {
   generalResumes,
-  getResumeFile,
   loadResumes,
   localResumeBackend,
   type Resume,
@@ -178,7 +177,6 @@ export default function App({ source }: { source: DataSource }) {
   const [resumesLoad, setResumesLoad] = useState<'idle' | 'loading' | 'ready' | 'error'>(
     source.kind === 'sample' ? 'ready' : 'idle',
   );
-  const [importing, setImporting] = useState(false);
   const [panel, setPanel] = useState<'resumes' | null>(null);
   const [view, setView] = useState<'home' | 'companies'>('home');
 
@@ -288,8 +286,8 @@ export default function App({ source }: { source: DataSource }) {
   );
 
   const addResume = useCallback(
-    async (label: string) => {
-      await createResume({ label, tailored: false });
+    async (label: string, file?: File) => {
+      await createResume({ label, tailored: false, file });
     },
     [createResume],
   );
@@ -324,32 +322,6 @@ export default function App({ source }: { source: DataSource }) {
     (id: string) => resumeBackend.getFile(id),
     [resumeBackend],
   );
-
-  /**
-   * One-time lift of this browser's resumes onto the account. Reads the local
-   * list and its IndexedDB PDFs and re-creates each through the Supabase
-   * backend, skipping labels already present so a second run is harmless.
-   * Returns how many were added so the panel can say so.
-   */
-  const importLocalResumes = useCallback(async (): Promise<number> => {
-    const local = loadResumes();
-    const have = new Set(resumesRef.current.map((r) => r.label.toLowerCase()));
-    let added = 0;
-    for (const r of local) {
-      if (have.has(r.label.toLowerCase())) continue;
-      const blob = r.fileName ? await getResumeFile(r.id) : null;
-      const file = blob ? new File([blob], r.fileName!, { type: 'application/pdf' }) : undefined;
-      const created = await resumeBackend.create({
-        label: r.label,
-        tailored: r.tailored ?? false,
-        file,
-      });
-      setResumes((prev) => [...prev, created]);
-      have.add(r.label.toLowerCase());
-      added += 1;
-    }
-    return added;
-  }, [resumeBackend]);
 
   /**
    * Hold a resume created in the review modal against the draft, selecting it,
@@ -1138,7 +1110,6 @@ export default function App({ source }: { source: DataSource }) {
           resumes={resumes}
           live={!!userId}
           loading={resumesLoad === 'loading'}
-          importing={importing}
           onAdd={addResume}
           onRename={renameResume}
           onToggleTailored={setResumeTailored}
@@ -1146,14 +1117,6 @@ export default function App({ source }: { source: DataSource }) {
           onAttach={attachResume}
           onDetach={detachResume}
           onOpenFile={openResumeFile}
-          onImport={async () => {
-            setImporting(true);
-            try {
-              return await importLocalResumes();
-            } finally {
-              setImporting(false);
-            }
-          }}
           onClose={() => setPanel(null)}
         />
       )}
