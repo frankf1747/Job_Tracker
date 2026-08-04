@@ -23,8 +23,8 @@ const SORTABLE: [SortKey, string][] = [
   ['status', 'STATUS'],
 ];
 
-const truncate: CSSProperties = {
-  maxWidth: 250,
+/** Clip a cell's text to its fixed column width, with an ellipsis. */
+const cellClip: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
@@ -183,7 +183,21 @@ export function ApplicationsTable(p: TableProps) {
 
       <div style={{ borderTop: '1px solid #d8d1c2', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', fontSize: 12.5, minWidth: 1120 }}>
+          <table
+            style={{ width: '100%', fontSize: 12.5, minWidth: 1340, tableLayout: 'fixed' }}
+          >
+            {/* Fixed widths so a long position or resume name clips instead of
+                stretching its column into the next one. Notes takes the rest. */}
+            <colgroup>
+              <col style={{ width: 34 }} />
+              <col style={{ width: 165 }} />
+              <col style={{ width: 250 }} />
+              <col style={{ width: 155 }} />
+              <col style={{ width: 150 }} />
+              <col style={{ width: 120 }} />
+              <col style={{ width: 170 }} />
+              <col />
+            </colgroup>
             <thead>
               <tr style={{ borderBottom: '1px solid #d8d1c2' }}>
                 <th style={{ width: 34, padding: '11px 0 11px 12px' }} />
@@ -255,11 +269,11 @@ export function ApplicationsTable(p: TableProps) {
                         </button>
                       </td>
 
-                      <td style={{ padding: '10px 14px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 14px', fontWeight: 600, ...cellClip }}>
                         {r.company}
                       </td>
 
-                      <td style={{ padding: '10px 14px', maxWidth: 250 }}>
+                      <td style={{ padding: '10px 14px', ...cellClip }}>
                         {r.sourceUrl ? (
                           <a
                             href={r.sourceUrl}
@@ -267,25 +281,25 @@ export function ApplicationsTable(p: TableProps) {
                             rel="noopener noreferrer"
                             title="Open job posting"
                             style={{
-                              ...truncate,
                               color: '#41678a',
                               fontWeight: 500,
-                              display: 'inline-flex',
+                              display: 'flex',
                               alignItems: 'center',
                               gap: 4,
+                              overflow: 'hidden',
                             }}
                           >
-                            {r.position}
+                            <span style={cellClip}>{r.position}</span>
                             <span style={{ fontSize: 9, opacity: 0.55, flex: 'none' }}>↗</span>
                           </a>
                         ) : (
-                          <span style={{ ...truncate, color: '#37414c', display: 'inline-block' }}>
+                          <span style={{ ...cellClip, color: '#37414c', display: 'block' }}>
                             {r.position}
                           </span>
                         )}
                       </td>
 
-                      <td style={{ padding: '10px 14px', color: '#5f6a75', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 14px', color: '#5f6a75', ...cellClip }}>
                         {r.loc.display}
                       </td>
 
@@ -399,12 +413,11 @@ export function ApplicationsTable(p: TableProps) {
                           color: '#8b939e',
                           fontFamily: SANS,
                           fontSize: 10.5,
-                          maxWidth: 180,
+                          ...cellClip,
                         }}
+                        title={r.resume}
                       >
-                        <span style={{ ...truncate, display: 'inline-block', maxWidth: 180 }} title={r.resume}>
-                          {r.resume}
-                        </span>
+                        {r.resume || '—'}
                       </td>
 
                       <td style={{ padding: '6px 14px 6px 12px' }}>
