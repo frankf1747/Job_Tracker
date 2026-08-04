@@ -74,22 +74,6 @@ export function ResumePanel({
     }
   };
 
-  const add = async () => {
-    const label = draft.trim();
-    if (!label) return;
-    if (resumes.some((r) => r.label.toLowerCase() === label.toLowerCase())) {
-      setError('You already have a resume with that name.');
-      return;
-    }
-    setError(null);
-    try {
-      await onAdd(label);
-      setDraft('');
-    } catch {
-      setError("Couldn't add that resume. Please try again.");
-    }
-  };
-
   const commitRename = async (r: Resume) => {
     const next = (edits[r.id] ?? r.label).trim();
     setEdits((e) => {
@@ -439,7 +423,7 @@ export function ResumePanel({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    void add();
+                    pickAddFile();
                   }
                 }}
                 placeholder="e.g. Analytics v4"
@@ -469,21 +453,6 @@ export function ResumePanel({
                 }}
               >
                 {addBusy ? 'Adding…' : 'Attach PDF'}
-              </button>
-              <button
-                onClick={() => void add()}
-                style={{
-                  background: '#41678a',
-                  border: '1px solid #41678a',
-                  borderRadius: 7,
-                  padding: '9px 18px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: '#f4f2ec',
-                  flex: 'none',
-                }}
-              >
-                Add
               </button>
             </div>
           </div>
