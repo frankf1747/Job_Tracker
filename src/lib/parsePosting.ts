@@ -10,7 +10,7 @@
  * value gets accepted, whereas a blank one gets filled in.
  */
 
-import { DEFAULT_EMPLOYMENT_TYPE, INDUSTRIES, RESUMES, SKILL_POOL } from './schema';
+import { DEFAULT_EMPLOYMENT_TYPE, INDUSTRIES, SKILL_POOL } from './schema';
 import type { Application, Status } from './schema';
 import { isoOf } from './derive';
 
@@ -378,7 +378,9 @@ export function parsePostingLocal(raw: string, today: Date): Draft {
     sourceUrl: pickSourceUrl(links, position, text),
     status: 'Submitted',
     appliedDate: isoOf(today),
-    resume: RESUMES[0],
+    // No resume by default: picking one is a deliberate act, so a fresh paste
+    // shouldn't silently attach whichever resume happens to be first.
+    resume: '',
     draft: '',
   };
 }

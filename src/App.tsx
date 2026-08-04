@@ -58,7 +58,6 @@ import {
   updateApplication,
 } from './data/applications';
 import {
-  generalResumes,
   loadResumes,
   localResumeBackend,
   type Resume,
@@ -243,15 +242,6 @@ export default function App({ source }: { source: DataSource }) {
   useEffect(() => {
     resumesRef.current = resumes;
   }, [resumes]);
-
-  /**
-   * The resume a new application defaults to. A tailored resume belongs to the
-   * application it was written for, so it is never the default for the next one.
-   */
-  const defaultResume = useCallback(
-    () => generalResumes(resumesRef.current)[0]?.label ?? resumesRef.current[0]?.label ?? '',
-    [],
-  );
 
   /**
    * Create a resume from inside the review modal, so a role-specific rewrite
@@ -512,10 +502,10 @@ export default function App({ source }: { source: DataSource }) {
           const wait = Math.max(0, PARSE_MIN_MS - (Date.now() - started));
           setTimeout(() => {
             setParsing(false);
-            // Default to a resume that actually exists in the user's list,
-            // rather than the parser's built-in constant.
+            // No resume selected by default — the parser already leaves it
+            // blank, so a paste never auto-attaches one.
             setEditingId(null);
-            setReview({ ...draft, resume: defaultResume() || draft.resume });
+            setReview(draft);
           }, wait);
         })
         .catch(() => {
@@ -526,7 +516,7 @@ export default function App({ source }: { source: DataSource }) {
 
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-  }, [review, parsing, view, showToast, defaultResume]);
+  }, [review, parsing, view, showToast]);
 
   /** Reopen the review modal on an existing row, to edit it. */
   const startEdit = useCallback((id: string) => {

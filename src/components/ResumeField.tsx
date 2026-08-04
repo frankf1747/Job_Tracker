@@ -119,6 +119,7 @@ export function ResumeField({
           }}
           style={input}
         >
+          <option value="">— No resume —</option>
           {resumeOptions(resumes, value).map((o) => (
             <option key={o} value={o}>
               {o}
