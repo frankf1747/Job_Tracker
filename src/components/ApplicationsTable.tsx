@@ -184,7 +184,7 @@ export function ApplicationsTable(p: TableProps) {
       <div style={{ borderTop: '1px solid #d8d1c2', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table
-            style={{ width: '100%', fontSize: 12.5, minWidth: 1340, tableLayout: 'fixed' }}
+            style={{ width: '100%', fontSize: 12.5, minWidth: 1180, tableLayout: 'fixed' }}
           >
             {/* Fixed widths so a long position or resume name clips instead of
                 stretching its column into the next one. Notes takes the rest. */}

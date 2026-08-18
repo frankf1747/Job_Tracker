@@ -77,7 +77,10 @@ table {
 
 .notes-input {
   width: 100%;
-  min-width: 300px;
+  /* No min-width: the Notes column is the flexible remainder, and a min-width
+     wider than that column makes the input overflow its cell and get clipped by
+     the table wrapper. Capped so a wide column doesn't stretch it to the edge. */
+  max-width: 460px;
   background: #fff;
   border: 1px solid #e2dccd;
   border-radius: 6px;
