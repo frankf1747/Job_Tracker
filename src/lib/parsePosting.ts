@@ -127,8 +127,10 @@ const LOCATION_LINE = /^[A-Za-z.\-' ]{2,30},\s*[A-Z]{2}\b/;
 const LOCATION_CODE = /^[A-Za-z]{2,}-[A-Za-z]{2,}-[A-Za-z]/;
 
 const INDUSTRY_TESTS: [RegExp, string][] = [
-  [/healthcare|clinic|patient|hospital|pharma/i, 'Healthcare'],
-  [/biotech|therapeut|genom|molecul|clinical trial/i, 'Biotech / Pharma'],
+  [
+    /healthcare|clinic|patient|hospital|pharma|biotech|therapeut|genom|molecul|clinical trial/i,
+    'Bio / Healthcare',
+  ],
   [/bank|payment|fintech|trading|lending|financ/i, 'Fintech'],
   [/retail|commerce|marketplace|shopping/i, 'E-commerce / Retail'],
   // Unilever-style CPG: no "retail" anywhere, but unmistakable supply-chain language.

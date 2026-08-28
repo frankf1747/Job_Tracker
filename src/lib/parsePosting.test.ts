@@ -298,7 +298,7 @@ describe('guessLevel', () => {
 
 describe('guessIndustry', () => {
   test('maps domain vocabulary to an industry', () => {
-    expect(guessIndustry('we serve hospital and patient data')).toBe('Healthcare');
+    expect(guessIndustry('we serve hospital and patient data')).toBe('Bio / Healthcare');
     expect(guessIndustry('payment processing and lending')).toBe('Fintech');
     expect(guessIndustry('semiconductor design')).toBe('Hardware / Semiconductors');
     expect(guessIndustry('a game studio')).toBe('Media / Gaming');

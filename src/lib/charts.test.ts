@@ -230,7 +230,7 @@ describe('industryArcs', () => {
     const rows = [
       app({ industry: 'Fintech' }),
       app({ industry: 'Fintech' }),
-      app({ industry: 'Healthcare' }),
+      app({ industry: 'Bio / Healthcare' }),
     ];
     const arcs = industryArcs(rows, []);
     expect(arcs.find((a) => a.name === 'Fintech')!.count).toBe(2);
