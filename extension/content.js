@@ -141,7 +141,7 @@ function visibleLocation() {
 }
 
 /**
- * LinkedIn's overflow (…) menu, which sits in the corner we want.
+ * LinkedIn's overflow (…) menu, which owns the corner we want.
  *
  * Matched on its aria-label rather than a class, since the labels are real
  * words and the classes are hashes.
@@ -176,16 +176,21 @@ function mountPanel() {
 
   if (getComputedStyle(card).position === 'static') card.style.position = 'relative';
 
-  // The … menu owns this corner, so move it down to make room. A transform
-  // rather than a margin: it shifts what you see without disturbing the
-  // surrounding layout, and it undoes itself when LinkedIn rebuilds the card.
+  // Hidden rather than moved. An earlier version shifted it down, which only
+  // relocated the collision — it landed on the signal cells instead. Clearing
+  // any leftover transform keeps an already-open tab from holding a displaced
+  // menu if this ever stops hiding it.
   const menu = overflowMenu(card);
-  if (menu) menu.style.transform = 'translateY(46px)';
+  if (menu) {
+    menu.style.transform = '';
+    menu.style.display = 'none';
+  }
 
   const host = document.createElement('div');
   host.id = PANEL_ID;
   host.style.position = 'absolute';
   host.style.top = '12px';
+  // Flush to the corner: the … menu is hidden, so nothing to clear.
   host.style.right = '16px';
   host.style.zIndex = '2';
 
