@@ -26,3 +26,6 @@ job-application-tracker/project/screenshots/
 job-application-tracker/project/uploads/*
 !job-application-tracker/project/uploads/fuji_hero.jpg
 job-application-tracker/project/.thumbnail
+
+# Extension config: holds the Supabase URL and anon key.
+extension/config.js

@@ -8,8 +8,16 @@ import { Overview } from './components/Overview';
 import { ParsingOverlay } from './components/ParsingOverlay';
 import { Pipeline } from './components/Pipeline';
 import { ResumePanel } from './components/ResumePanel';
+import { QueueList } from './components/QueueList';
 import { Toast, type ToastState } from './components/Toast';
-import { ToolRail, CompanyIcon, HomeIcon, ResumeIcon, SignOutIcon } from './components/ToolRail';
+import {
+  ToolRail,
+  CompanyIcon,
+  HomeIcon,
+  QueueIcon,
+  ResumeIcon,
+  SignOutIcon,
+} from './components/ToolRail';
 import { CompanyList } from './components/CompanyList';
 import {
   createCompany,
@@ -65,6 +73,8 @@ import {
 } from './data/resumeStore';
 import { supabaseResumeBackend } from './data/resumes';
 import type { NewResume } from './components/ResumeField';
+import { listQueue, deleteQueued, type QueuedJob } from './data/queue';
+import { draftFromQueued } from './lib/queueDraft';
 import { supabase } from './lib/supabase';
 
 const PAGE_SIZE = 12;
@@ -177,7 +187,7 @@ export default function App({ source }: { source: DataSource }) {
     source.kind === 'sample' ? 'ready' : 'idle',
   );
   const [panel, setPanel] = useState<'resumes' | null>(null);
-  const [view, setView] = useState<'home' | 'companies'>('home');
+  const [view, setView] = useState<'home' | 'companies' | 'queue'>('home');
 
   // Company List. In sample mode it is seeded local state; signed in it loads
   // from Supabase the first time the page is opened.
@@ -187,6 +197,13 @@ export default function App({ source }: { source: DataSource }) {
   const [companiesLoad, setCompaniesLoad] = useState<'idle' | 'loading' | 'ready' | 'error'>(
     source.kind === 'sample' ? 'ready' : 'idle',
   );
+  // The capture queue. Loaded the first time the page is opened, like companies.
+  const [queue, setQueue] = useState<QueuedJob[]>([]);
+  const [queueLoad, setQueueLoad] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [queueBusyId, setQueueBusyId] = useState<string | null>(null);
+  // The queued row the review modal is promoting, removed once the row saves.
+  const [promotingId, setPromotingId] = useState<string | null>(null);
+
   const companiesRef = useRef<Company[]>(companies);
   useEffect(() => {
     companiesRef.current = companies;
@@ -339,6 +356,80 @@ export default function App({ source }: { source: DataSource }) {
     setView('companies');
     if (userId && companiesLoad === 'idle') loadCompanies();
   }, [userId, companiesLoad, loadCompanies]);
+
+  // ---------- queue ----------
+  /**
+   * Fetch the queue. `silent` keeps the list on screen while it refreshes,
+   * which is what a background refresh wants — swapping in a spinner over rows
+   * the user is already reading would be worse than a moment of stale data.
+   */
+  const loadQueue = useCallback(
+    (silent = false) => {
+      if (!userId) return;
+      if (!silent) setQueueLoad('loading');
+      listQueue()
+        .then((q) => {
+          setQueue(q);
+          setQueueLoad('ready');
+        })
+        .catch(() => {
+          if (!silent) setQueueLoad('error');
+        });
+    },
+    [userId],
+  );
+
+  const openQueue = useCallback(() => {
+    setView('queue');
+    // Always refetch: the extension adds captures from a different tab, so what
+    // was loaded last time is stale by definition.
+    loadQueue(queueLoad !== 'idle');
+  }, [loadQueue, queueLoad]);
+
+  /**
+   * Captures happen in another tab, so pick them up when this one comes back to
+   * the foreground rather than making the user reload the page.
+   */
+  useEffect(() => {
+    if (view !== 'queue' || !userId) return;
+
+    const refresh = () => {
+      if (document.visibilityState === 'visible') loadQueue(true);
+    };
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [view, userId, loadQueue]);
+
+  const removeQueued = useCallback(
+    async (id: string) => {
+      setQueueBusyId(id);
+      try {
+        await deleteQueued(id);
+        setQueue((q) => q.filter((j) => j.id !== id));
+      } catch {
+        showToast("Couldn't remove that queued job.", 'error');
+      } finally {
+        setQueueBusyId(null);
+      }
+    },
+    [showToast],
+  );
+
+  /**
+   * Send a queued job through the review modal. It is only removed from the
+   * queue once the application actually saves, so an abandoned review leaves
+   * the capture where it was.
+   */
+  const promoteQueued = useCallback((job: QueuedJob) => {
+    setEditingId(null);
+    setPromotingId(job.id);
+    setReview(draftFromQueued(job, new Date()));
+    setView('home');
+  }, []);
 
   const addCompany = useCallback(
     async (name: string, notes: string) => {
@@ -694,6 +785,7 @@ export default function App({ source }: { source: DataSource }) {
     setReview(null);
     setEditingId(null);
     setPendingResume(null);
+    setPromotingId(null);
   }, []);
 
   /**
@@ -751,6 +843,13 @@ export default function App({ source }: { source: DataSource }) {
           ? await createApplication({ ...fields, notes: '' }, userId)
           : // Sample mode has no database to stamp the row, so it stands in.
             { ...fields, notes: '', id: crypto.randomUUID(), createdAt: Date.now(), ...derived };
+        // Promoted from the queue: now that it is a real application, the
+        // capture has served its purpose and leaves the queue.
+        if (promotingId) {
+          await deleteQueued(promotingId).catch(() => undefined);
+          const dropped = promotingId;
+          setQueue((q) => q.filter((j) => j.id !== dropped));
+        }
         setRows((rs) => [saved, ...rs]);
         closeReview();
         setPage(1);
@@ -763,7 +862,7 @@ export default function App({ source }: { source: DataSource }) {
     } finally {
       setSaving(false);
     }
-  }, [review, editingId, userId, showToast, closeReview, pendingResume, createResume]);
+  }, [review, editingId, userId, showToast, closeReview, pendingResume, createResume, promotingId]);
 
   // ---------- derived ----------
   const visible = useMemo(() => filterRows(rows, filter, search), [rows, filter, search]);
@@ -1064,6 +1163,13 @@ export default function App({ source }: { source: DataSource }) {
             active: view === 'companies',
           },
           {
+            id: 'queue',
+            label: 'Queue',
+            icon: <QueueIcon />,
+            onClick: openQueue,
+            active: view === 'queue',
+          },
+          {
             id: 'resumes',
             label: 'Resumes',
             icon: <ResumeIcon />,
@@ -1092,6 +1198,17 @@ export default function App({ source }: { source: DataSource }) {
           onPatch={patchCompany}
           onDelete={removeCompany}
           onReload={loadCompanies}
+        />
+      )}
+
+      {view === 'queue' && (
+        <QueueList
+          jobs={queue}
+          load={queueLoad === 'idle' ? 'loading' : queueLoad}
+          busyId={queueBusyId}
+          onPromote={promoteQueued}
+          onRemove={removeQueued}
+          onReload={() => loadQueue()}
         />
       )}
 
