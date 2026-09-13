@@ -202,7 +202,7 @@ function mountPanel() {
         padding: 0 6px 0 16px;
         /* A pale tint of the portfolio accent, so the pill is pink at rest
            without shouting on someone else's page. */
-        background: #fbeef3;
+        background: #f0e2e9;
         border: none;
         border-radius: 50px;
         color: #a53860;
@@ -213,9 +213,9 @@ function mountPanel() {
         /* Neumorphic: shadow one way, highlight the other, so the pill is
            extruded from the card rather than floating over it. */
         box-shadow:
-          5px 5px 12px rgba(69, 9, 32, 0.13),
-          -5px -5px 12px #ffffff;
-        transition: all .35s ease;
+          4px 4px 9px rgba(74, 20, 45, 0.22),
+          -4px -4px 9px #ffffff;
+        transition: box-shadow .17s cubic-bezier(.22,.8,.3,1);
       }
 
       /* The raised knob, lit from the same angle as the pill it sits in. */
@@ -227,45 +227,94 @@ function mountPanel() {
         width: 34px;
         height: 34px;
         border-radius: 50%;
-        background: #fbeef3;
+        background: #f0e2e9;
         font-size: 16px;
         line-height: 1;
         color: #a53860;
         box-shadow:
-          3px 3px 7px rgba(69, 9, 32, 0.17),
-          -3px -3px 7px #ffffff;
-        transition: all .35s ease;
+          3px 3px 6px rgba(74, 20, 45, 0.24),
+          -3px -3px 6px #ffffff;
+        transition: box-shadow .17s cubic-bezier(.22,.8,.3,1),
+                    transform .17s cubic-bezier(.22,.8,.3,1);
       }
 
-      /* Hover fills with the accent itself and inverts the knob, so the knob
-         reads as lit rather than as a hole. */
+      /* Hover presses the pill into the surface: the shadows invert from raised
+         to recessed, which is the whole neumorphic trick. No hue change — the
+         feedback is physical, so the colour stays put and only the light moves.
+         Snappy easing, because a real button doesn't ease in over a third of a
+         second; it gives way. */
       .btn:hover:not([disabled]) {
-        background: #f2247a;
-        color: #fff;
         box-shadow:
-          5px 5px 14px rgba(242, 36, 122, 0.34),
-          -4px -4px 12px #ffffff;
+          inset 4px 4px 7px rgba(74, 20, 45, 0.30),
+          inset -4px -4px 7px #ffffff;
       }
+      /* The knob sinks with it, a step shallower so the glyph stays readable. */
       .btn:hover:not([disabled]) .knob {
-        background: #fff;
-        color: #f2247a;
-        box-shadow: 2px 2px 6px rgba(69, 9, 32, 0.22);
+        box-shadow:
+          inset 2px 2px 4px rgba(74, 20, 45, 0.26),
+          inset -2px -2px 4px #ffffff;
       }
+      /* Label and knob ride down with the surface they sit on. */
+      .btn:hover:not([disabled]) #label,
+      .btn:hover:not([disabled]) .knob { transform: translateY(1px); }
 
-      /* Pressed: the neumorphic inversion — the pill sinks into the surface. */
+      /* Active bottoms out — deeper still, so a click reads past the hover. */
       .btn:active:not([disabled]) {
         box-shadow:
-          inset 4px 4px 9px rgba(69, 9, 32, 0.28),
-          inset -3px -3px 8px rgba(255, 255, 255, 0.32);
+          inset 5px 5px 9px rgba(74, 20, 45, 0.38),
+          inset -4px -4px 8px #ffffff;
       }
-      .btn:active:not([disabled]) .knob { box-shadow: none; }
+      .btn:active:not([disabled]) .knob {
+        box-shadow: inset 2px 2px 5px rgba(74, 20, 45, 0.32);
+        transform: translateY(2px);
+      }
 
       /* Settled states keep the soft surface, only the hue changes. */
       .btn[disabled] { cursor: default; }
-      .btn.done { background: #e6f3ea; color: #2f6b45; }
-      .btn.done .knob { background: #e6f3ea; color: #2f6b45; }
-      .btn.err { background: #fbeae6; color: #a35242; }
-      .btn.err .knob { background: #fbeae6; color: #a35242; }
+      .btn.done { background: #dfeee4; color: #2f6b45; }
+      .btn.done .knob { background: #dfeee4; color: #2f6b45; }
+      .btn.err { background: #f6e0da; color: #a35242; }
+      .btn.err .knob { background: #f6e0da; color: #a35242; }
+
+      /* Three signals read off the posting, filling the pill's width evenly. */
+      .bento {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        width: 150px;
+        margin-top: 8px;
+      }
+      .cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        height: 42px;
+        border-radius: 10px;
+        background: #f0e2e9;
+        color: #a53860;
+        font: 700 9px/1 system-ui, sans-serif;
+        letter-spacing: -.01em;
+        /* Lit from the same angle as the pill, so the set reads as one object. */
+        box-shadow:
+          3px 3px 6px rgba(74, 20, 45, 0.20),
+          -3px -3px 6px #ffffff;
+      }
+      #label { transition: transform .17s cubic-bezier(.22,.8,.3,1); }
+
+      .cell svg { width: 12px; height: 12px; }
+      .cell .v { white-space: nowrap; }
+      /* Unstated in the posting — not the same as a negative answer. */
+      .cell.off {
+        background: #f4f4f6;
+        color: #b9bcc4;
+        box-shadow:
+          2px 2px 5px rgba(0, 0, 0, 0.05),
+          -2px -2px 5px #ffffff;
+      }
+      /* An explicit refusal to sponsor is worth seeing at a glance. */
+      .cell.warn { background: #fdecea; color: #b23c2a; }
 
       .note {
         width: 150px;
@@ -279,6 +328,29 @@ function mountPanel() {
       <span id="label">Queue</span>
       <span class="knob" id="knob">+</span>
     </button>
+    <div class="bento" id="bento">
+      <div class="cell off" id="c-visa" title="Visa sponsorship">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18" />
+        </svg>
+        <span class="v">—</span>
+      </div>
+      <div class="cell off" id="c-exp" title="Years of experience">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+        </svg>
+        <span class="v">—</span>
+      </div>
+      <div class="cell off" id="c-pay" title="Pay range">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 2v20M17 6.5C17 4.6 14.8 3.5 12 3.5S7 4.6 7 6.5s2.2 3 5 3.5 5 1.6 5 3.5-2.2 3-5 3-5-1.1-5-3" />
+        </svg>
+        <span class="v">—</span>
+      </div>
+    </div>
     <div class="note" id="note"></div>
   `;
 
@@ -287,6 +359,29 @@ function mountPanel() {
 }
 
 let lastJobId = null;
+
+/**
+ * Fill the three signal cells from the posting's text.
+ *
+ * Run once per posting rather than on every tick: reading the description walks
+ * the whole document, which is far too costly to repeat on a timer.
+ */
+function renderSignals(root, text) {
+  const set = (id, value, cls) => {
+    const cell = root.getElementById(id);
+    cell.className = 'cell' + (value ? (cls ? ` ${cls}` : '') : ' off');
+    cell.querySelector('.v').textContent = value ?? '—';
+  };
+
+  const visa = detectSponsorship(text);
+  set(
+    'c-visa',
+    visa === 'no' ? 'No H1B' : visa === 'yes' ? 'H1B' : null,
+    visa === 'no' ? 'warn' : '',
+  );
+  set('c-exp', detectYears(text), '');
+  set('c-pay', detectPay(text), '');
+}
 
 function setState(state, text) {
   const root = document.getElementById(PANEL_ID)?.shadowRoot;
@@ -359,6 +454,7 @@ function sync() {
   lastJobId = id;
   root.getElementById('go').onclick = queue;
   setState('idle');
+  renderSignals(root, visibleDescription());
 }
 
 // The SPA swaps postings without navigating, and rebuilds the action row when
