@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import source from '../../extension/description.js?raw';
 
 /**
  * The extension's description logic, tested against the text it actually
@@ -9,8 +9,12 @@ import { describe, expect, it } from 'vitest';
  * script cannot be an ES module, so it has no exports to import. It is written
  * without top-level side effects precisely so it can be evaluated here and its
  * pure functions exercised against real fixtures.
+ *
+ * Loaded with Vite's `?raw` rather than node:fs so this file stays inside the
+ * app's tsconfig, which carries browser types only. Giving that project node
+ * types to satisfy one test would let any component import `fs` and still
+ * typecheck.
  */
-const source = readFileSync(new URL('../../extension/description.js', import.meta.url), 'utf8');
 const { isBoilerplate } = new Function(`${source}\nreturn { isBoilerplate };`)() as {
   isBoilerplate: (text: string) => boolean;
 };
