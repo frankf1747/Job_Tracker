@@ -25,7 +25,13 @@ const env = Object.fromEntries(
     .filter((l) => l.includes('=') && !l.trimStart().startsWith('#'))
     .map((l) => {
       const i = l.indexOf('=');
-      return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^["']|["']$/g, '')];
+      return [
+        l.slice(0, i).trim(),
+        l
+          .slice(i + 1)
+          .trim()
+          .replace(/^["']|["']$/g, ''),
+      ];
     }),
 );
 
@@ -67,15 +73,17 @@ const auth = await fetch(`${URL_}/auth/v1/token?grant_type=password`, {
   body: JSON.stringify({ email, password: pass }),
 });
 const session = await auth.json();
-if (!auth.ok) throw new Error(session.error_description || session.msg || `Sign-in failed (${auth.status})`);
+if (!auth.ok)
+  throw new Error(session.error_description || session.msg || `Sign-in failed (${auth.status})`);
 
 const COLUMNS =
-  'id,company,position,location_raw,job_url,apply_url,description,salary,workplace_type,posted_note,created_at';
+  'id,company,position,location_raw,job_url,apply_url,description,salary,workplace_type,posted_note,created_at,' +
+  // Included so a scoring run can see what is already done and skip it.
+  'fit_problem,fit_skills,fit_experience,fit_score,fit_decision,fit_reason,hr_verdict,hr_note,gate,soft_floor,resume_target,scored_at';
 
-const res = await fetch(
-  `${URL_}/rest/v1/job_queue?select=${COLUMNS}&order=created_at.desc`,
-  { headers: { apikey: KEY, Authorization: `Bearer ${session.access_token}` } },
-);
+const res = await fetch(`${URL_}/rest/v1/job_queue?select=${COLUMNS}&order=created_at.desc`, {
+  headers: { apikey: KEY, Authorization: `Bearer ${session.access_token}` },
+});
 const rows = await res.json();
 if (!res.ok) throw new Error(rows.message || `Fetch failed (${res.status})`);
 
@@ -83,6 +91,13 @@ const out = process.argv[2] ?? 'queue.json';
 writeFileSync(out, JSON.stringify(rows, null, 2));
 
 console.log(`${rows.length} jobs -> ${out}`);
+const unscored = rows.filter((r) => r.scored_at == null).length;
+console.log(`${unscored} unscored, ${rows.length - unscored} already scored\n`);
 for (const r of rows) {
-  console.log(`  ${String(r.description?.length ?? 0).padStart(6)} chars  ${r.company} — ${r.position}`);
+  const mark = r.scored_at == null ? '  --' : String(r.fit_score).padStart(4);
+  const what =
+    r.scored_at == null ? '' : `  ${r.fit_decision}${r.resume_target ? ':' + r.resume_target : ''}`;
+  console.log(
+    `${mark} ${String(r.description?.length ?? 0).padStart(6)} chars  ${r.company} — ${r.position.slice(0, 44)}${what}`,
+  );
 }
