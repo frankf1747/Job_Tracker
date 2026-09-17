@@ -51,7 +51,9 @@ function problems(r, i) {
 
   // Cross-field rules the database cannot express.
   if (r.gate != null && r.fit_decision !== 'blocked') {
-    out.push(`${at}: a gate fired but fit_decision is "${r.fit_decision}" — a gate outranks the score`);
+    out.push(
+      `${at}: a gate fired but fit_decision is "${r.fit_decision}" — a gate outranks the score`,
+    );
   }
   if (r.fit_decision === 'blocked' && r.gate == null) {
     out.push(`${at}: blocked without naming a gate`);
@@ -79,7 +81,12 @@ if (bad.length) {
 }
 
 const tally = rows.reduce((m, r) => ({ ...m, [r.fit_decision]: (m[r.fit_decision] ?? 0) + 1 }), {});
-console.log(`${rows.length} valid rows: ` + Object.entries(tally).map(([k, v]) => `${k} ${v}`).join(', '));
+console.log(
+  `${rows.length} valid rows: ` +
+    Object.entries(tally)
+      .map(([k, v]) => `${k} ${v}`)
+      .join(', '),
+);
 if (dry) {
   console.log('--dry-run: nothing written');
   process.exit(0);
@@ -91,7 +98,13 @@ const env = Object.fromEntries(
     .filter((l) => l.includes('=') && !l.trimStart().startsWith('#'))
     .map((l) => {
       const i = l.indexOf('=');
-      return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^["']|["']$/g, '')];
+      return [
+        l.slice(0, i).trim(),
+        l
+          .slice(i + 1)
+          .trim()
+          .replace(/^["']|["']$/g, ''),
+      ];
     }),
 );
 const URL_ = env.VITE_SUPABASE_URL;
@@ -112,7 +125,8 @@ const auth = await fetch(`${URL_}/auth/v1/token?grant_type=password`, {
   body: JSON.stringify({ email, password: pass }),
 });
 const session = await auth.json();
-if (!auth.ok) throw new Error(session.error_description || session.msg || `Sign-in failed (${auth.status})`);
+if (!auth.ok)
+  throw new Error(session.error_description || session.msg || `Sign-in failed (${auth.status})`);
 
 const scoredAt = new Date().toISOString();
 let ok = 0;

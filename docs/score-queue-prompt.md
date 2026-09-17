@@ -34,51 +34,84 @@ out of the description or treat it as unknown.
 
 ## Rules
 
-### 1. Gates first. Five of them.
+### 1. The gates are already computed. Do not re-derive them.
 
-Any one sets `fit_decision: "blocked"` and records which in `gate`:
+`queue.json` carries a `gates` object per job, produced by `scripts/gates.mjs`
+and covered by tests:
 
-| `gate`          | Fires when                                               |
-| --------------- | -------------------------------------------------------- |
-| `years`         | A flat years floor above ~2 **and no soft-floor clause** |
-| `system`        | A required system Frank has never used                   |
-| `salary`        | A band far above roughly $65–110K                        |
-| `clearance`     | US citizenship, green card, or active clearance required |
-| `authorization` | An explicit no-sponsorship requirement                   |
+```json
+"gates": {
+  "yearsFloor": 5,
+  "softFloor": null,
+  "salary": { "min": 150000, "max": 175000 },
+  "location": "This role is based in San Francisco",
+  "authorization": null,
+  "systems": [],
+  "gate": "salary"
+}
+```
 
-Systems Frank has **never used** — a _required_ mention fires `system`:
-Jira/Confluence, WMS (HighJump/Korber), Agile ceremony facilitation
-(standups, sprint planning, retros), specialty-pharmacy file specs, metadata
-catalog tools, claims data / provider performance measurement / clinical
-groupers, deep learning or RL model building.
+When `gate` is non-null, set `fit_decision: "blocked"` and copy `gate` through.
+Score the job anyway — the score says what the gate cost, and `gate` lets a
+human check whether the machine was right.
 
-Score a blocked job anyway. The score says what the gate cost; `gate` lets a
-human check whether the machine was right. Both are required.
+**Do not look for these facts in the prose yourself.** Every one of them has
+been got wrong that way: a 5-year floor read as 2 because a nested "including
+2+" looked smaller, a $150K band missed entirely, a company's head office in
+the marketing blurb recorded as the job's location. If a computed fact looks
+wrong, say so in your summary — do not quietly overrule it.
 
-### 2. Soft floors override the years gate
+`softFloor.helps` is the field that matters, not its presence. A `degree-only`
+clause ("degree or equivalent relevant experience") lowers the bar for someone
+without a diploma and does nothing for Frank, who has one and an MSBA.
 
-The highest-value signal in the whole rubric. Set `soft_floor: true` when the
-posting carries any of:
+### 2. Read the whole description
 
-- **degree ladder** — "Bachelor's + 3 years, Master's + 1 year" (his MSBA is
-  worth roughly two years)
-- **equivalency clause** — "or equivalent professional experience", "any
-  suitable combination of education, experience or training", "in lieu of"
-- **new-grad door** — "2+ years or a recent graduate"
-
-`frank-resume` is explicit: postings with one of these are where Frank is
-genuinely competitive; postings with a flat "3+ years" and no clause are not.
-`soft_floor: true` and `gate: "years"` cannot both hold.
+Not the first screen of it. The location, the salary band, the travel
+requirement and the physical requirements all sit near the end, under the
+marketing copy. A posting scored from its first half produced a reason line
+naming the wrong city.
 
 ### 3. Fit — three dimensions, hiring-manager view only
 
-| Field            | Question                                                           | Range |
-| ---------------- | ------------------------------------------------------------------ | ----- |
-| `fit_problem`    | Do the challenges this team describes resemble ones he has solved? | 0–45  |
-| `fit_skills`     | Are the named tools and methods ones he holds?                     | 0–30  |
-| `fit_experience` | Does his history sit in this function and domain?                  | 0–25  |
+Scored against `frank-resume/references/content-library.md`. Use the anchors.
+A free-floating 0-45 drifts upward: an earlier run put three of six jobs in the
+top band twice running, by scoring the _shape_ of a match rather than the
+distance still to travel.
 
-Problem overlap dominates. Diagnose before scoring, in this order:
+**`fit_problem` — 0-45. Do the challenges this team describes resemble ones he
+has solved?**
+
+|     |                                                                                                               |
+| --- | ------------------------------------------------------------------------------------------------------------- |
+| 45  | The problem they describe is one he has solved end to end, at comparable scale, and you can name the artifact |
+| 36  | Same class of problem, but smaller scale or partial ownership                                                 |
+| 27  | Adjacent problem; the work transfers, the domain does not                                                     |
+| 18  | Same job title, different problem                                                                             |
+| 9   | Only the tools overlap                                                                                        |
+| 0   | Nothing                                                                                                       |
+
+**Hard rule: you may not score above 27 unless the reason line names the
+specific project or bullet from the content library that answers it.** If you
+cannot name it, the match is a resemblance and belongs at 27 or below. This is
+the single check that stops inflation.
+
+**`fit_skills` — 0-30.** Count the tools and methods the posting _names as
+required_. 30 means he holds all of them at the depth stated; subtract
+proportionally for each he lacks, and subtract double for one that is central
+rather than listed. Sandbox-level exposure (Salesforce) is not possession.
+
+**`fit_experience` — 0-25.**
+
+|     |                                                 |
+| --- | ----------------------------------------------- |
+| 25  | Same function, same domain, at the level stated |
+| 20  | Same function, adjacent domain                  |
+| 15  | Adjacent function, same domain                  |
+| 10  | Adjacent on both                                |
+| 5   | Neither                                         |
+
+### 4. Diagnose before you score
 
 1. **What is broken that made them open this req?** Read for _repetition_, not
    vocabulary. A posting saying the same thing three ways is naming its pain.
@@ -87,25 +120,29 @@ Problem overlap dominates. Diagnose before scoring, in this order:
 3. **What kind of person are they describing?** One sentence.
 4. **Which of his assets answers that?** Often not the obvious one.
 
-### 4. Two verdicts. Never average them.
+### 5. Two verdicts. Never average them.
 
 `fit_*` is the hiring-manager read. The HR read is separate:
 
 - `hr_verdict`: `pass` | `drag` | `fail`
-- `hr_note`: which filter, e.g. "6 years required, no equivalency clause"
+- `hr_note`: which filter, e.g. "Must live in Colorado"
+
+`gates.location` feeds this directly: a residency requirement is an HR `fail`,
+not a gate, because it is a fact about where he lives rather than what he can
+do.
 
 Two standing drags, neither fixable by writing: **under two years of
-experience**, and **December 2026 graduation** (reads as unavailable).
+experience**, and **December 2026 graduation**.
 
-A `tailor` row with `hr_verdict: "fail"` is valid and useful — it means write
-the page and find a referral rather than using the portal.
+A `tailor` row with `hr_verdict: "fail"` is valid and useful — write the page,
+find a referral rather than using the portal.
 
-### 5. Decision
+### 6. Decision
 
 ```
-blocked   any gate fired
+blocked   gates.gate is non-null
 tailor    fit_problem + fit_skills + fit_experience >= 70
-general   45–69, and name resume_target
+general   45-69, and name resume_target
 skip      < 45
 ```
 

@@ -50,7 +50,25 @@ floors and a two-verdict read, learned across sessions of Frank correcting the
 same mistakes. Triage reuses those rules rather than running a parallel system
 that can disagree with them.
 
-### Gates come first, and there are five
+### Gates are computed, not judged
+
+`scripts/gates.mjs` derives every gate fact from the description text and is
+covered by tests. The scoring session is handed the answers rather than asked
+to find them, because a model reading a long posting for a salary band, a
+residency requirement and a years floor simultaneously gets them wrong — and
+gets them wrong invisibly, since a confident wrong number reads exactly like a
+right one.
+
+Two rules in that module were each learned from a specific failure:
+
+- **The years floor is the highest floor stated, not the lowest figure
+  present.** "5+ years of strategy, including 2+ in consulting" requires five.
+- **A clause that substitutes for the degree is not a soft floor.** "Degree or
+  equivalent relevant experience" helps someone without a diploma. Frank has
+  one, and an MSBA. Only a degree ladder, an education-and-experience
+  combination, or an explicit new-grad door lowers the years bar for him.
+
+### The five gates
 
 From `frank-resume` section 0a. Any one sets `fit_decision = 'blocked'` and
 records which in `gate`:
@@ -95,6 +113,14 @@ Scored by reading the description against
 | `fit_problem`    | Do the challenges this team describes resemble ones already solved? | 0-45  |
 | `fit_skills`     | Are the named tools and methods ones already held?                  | 0-30  |
 | `fit_experience` | Does the work history sit in this function and domain?              | 0-25  |
+
+Each dimension is scored against written anchors rather than free judgment.
+Unanchored sub-scores drift upward: an audit of the first two runs found the
+top band inflated by five to eight points, because a match was scored on its
+shape rather than the distance left to travel. The governing rule is that
+`fit_problem` cannot exceed 27 unless the reason line names the specific
+project from the content library that answers the posting — if it cannot be
+named, it is a resemblance.
 
 Problem overlap dominates because `frank-resume` says so directly: _"you should
 always understand what is the JD saying. what problem they are trying to solve.

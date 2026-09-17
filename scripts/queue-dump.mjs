@@ -18,6 +18,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { gateFacts, gateFor } from './gates.mjs';
 
 const env = Object.fromEntries(
   readFileSync(new URL('../.env', import.meta.url), 'utf8')
@@ -87,17 +88,29 @@ const res = await fetch(`${URL_}/rest/v1/job_queue?select=${COLUMNS}&order=creat
 const rows = await res.json();
 if (!res.ok) throw new Error(rows.message || `Fetch failed (${res.status})`);
 
+// Every mechanical fact is computed here rather than left to the scoring run.
+// A model reading 8,000 characters of prose for a salary band, a residency
+// requirement and a years floor all at once gets them wrong; these are regexes
+// with a test suite, and the model is handed the answers.
+const enriched = rows.map((r) => {
+  const facts = gateFacts(r.description || '');
+  return { ...r, gates: { ...facts, gate: gateFor(facts) } };
+});
+
 const out = process.argv[2] ?? 'queue.json';
-writeFileSync(out, JSON.stringify(rows, null, 2));
+writeFileSync(out, JSON.stringify(enriched, null, 2));
 
 console.log(`${rows.length} jobs -> ${out}`);
+const gated = enriched.filter((r) => r.gates.gate != null).length;
 const unscored = rows.filter((r) => r.scored_at == null).length;
-console.log(`${unscored} unscored, ${rows.length - unscored} already scored\n`);
-for (const r of rows) {
+console.log(
+  `${unscored} unscored, ${rows.length - unscored} already scored, ${gated} gated before reading\n`,
+);
+for (const r of enriched) {
   const mark = r.scored_at == null ? '  --' : String(r.fit_score).padStart(4);
   const what =
     r.scored_at == null ? '' : `  ${r.fit_decision}${r.resume_target ? ':' + r.resume_target : ''}`;
   console.log(
-    `${mark} ${String(r.description?.length ?? 0).padStart(6)} chars  ${r.company} — ${r.position.slice(0, 44)}${what}`,
+    `${mark} ${String(r.description?.length ?? 0).padStart(6)} chars  ${r.company} — ${r.position.slice(0, 40)}${what}${g}`,
   );
 }
