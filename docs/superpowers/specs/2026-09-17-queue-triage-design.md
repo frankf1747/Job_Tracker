@@ -39,85 +39,142 @@ runs again, unscored rows simply display as unscored.
 - Automatic scoring at capture time. There is no server-side worker, by design.
   Scoring is a batch the user triggers.
 - Generating resumes. Tailoring continues to happen in chat via the
-  `frank-resume` skill. This spec only decides *which* jobs earn that.
+  `frank-resume` skill. This spec only decides _which_ jobs earn that.
 - A weekly cap on the `tailor` tier. Deferred until the backlog is scored and
   the real distribution is known — a cap on six jobs solves nothing.
 
 ## The model
 
+The rubric is not invented here. `frank-resume` already encodes gates, soft
+floors and a two-verdict read, learned across sessions of Frank correcting the
+same mistakes. Triage reuses those rules rather than running a parallel system
+that can disagree with them.
+
+### Gates come first, and there are five
+
+From `frank-resume` section 0a. Any one sets `fit_decision = 'blocked'` and
+records which in `gate`:
+
+| `gate`          | Condition                                                                                                                      |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `years`         | A flat years floor above ~2 with **no** soft-floor clause                                                                      |
+| `system`        | A required system never used — Jira, WMS/Korber, Agile ceremony facilitation, specialty pharmacy file specs, metadata catalogs |
+| `salary`        | A band far above the realistic range of roughly $65-110K                                                                       |
+| `clearance`     | US citizenship, green card, or an active clearance                                                                             |
+| `authorization` | An explicit no-sponsorship requirement                                                                                         |
+
+A blocked job still gets scored. The score is what tells you whether the gate
+cost you anything, and `gate` is what tells a human whether the machine was
+right — both are needed for a row that can be argued with.
+
+### Soft floors override the years gate
+
+The single highest-value signal, and the one most easily missed. Three forms:
+
+- degree ladder — _"Bachelor's + 3 years, Master's + 1 year"_ (the MSBA is worth
+  roughly two years)
+- equivalency clause — _"any suitable combination of education, experience or
+  training"_, _"or equivalent professional experience"_
+- explicit new-grad door — _"2+ years or a recent graduate"_
+
+`frank-resume` is unambiguous about why this matters: postings carrying one of
+these are where Frank is genuinely competitive, and postings with a flat "3+
+years" and no clause are not. `soft_floor` stores whether one was found, and a
+true value suppresses the `years` gate.
+
+**This is detected mechanically, not by the model.** It is a text pattern, and a
+pattern list is auditable in a way a judgment call is not.
+
 ### Fit — three dimensions
 
-Scored by reading the job description against the canonical history in the
-`frank-resume` skill.
+Scored by reading the description against
+`frank-resume/references/content-library.md`.
 
-| Dimension | Question | Weight |
-|---|---|---|
-| Problem overlap | Do the challenges this team describes resemble ones already solved? | 45 |
-| Skills required | Are the named tools and methods ones already held? | 30 |
-| Experience overlap | Does the work history sit in this function and domain? | 25 |
+| Column           | Question                                                            | Range |
+| ---------------- | ------------------------------------------------------------------- | ----- |
+| `fit_problem`    | Do the challenges this team describes resemble ones already solved? | 0-45  |
+| `fit_skills`     | Are the named tools and methods ones already held?                  | 0-30  |
+| `fit_experience` | Does the work history sit in this function and domain?              | 0-25  |
 
-Problem overlap carries the most weight because it is what actually decides
-whether a posting is worth an evening, and because it is the dimension no
-keyword matcher can reach. Skills outweigh experience deliberately: skills are
-provable and transferable, years in a function much less so.
+Problem overlap dominates because `frank-resume` says so directly: _"you should
+always understand what is the JD saying. what problem they are trying to solve.
+what kind of person they want, really is — what are their pain points."_
+Keyword extraction produces a resume that matches the posting and says nothing
+about the candidate. Skills outweigh experience because skills are provable and
+transferable; years in a function much less so.
 
-Years-of-experience, location, and clearance are **not** gates. They inform
-`fit_experience` and nothing more.
+### Two verdicts, never averaged
 
-### Sponsorship is a gate, not a dimension
+`frank-resume`: _"They reach opposite verdicts and Frank has asked for both. HR
+applies hard filters... The hiring manager reads the whole page and forms a
+doubt about fit. A resume routinely passes one and fails the other, and saying
+so is more useful than averaging them into a single verdict."_
 
-A posting that refuses sponsorship sets `fit_decision = 'blocked'` regardless of
-score. The fit score is still computed and stored, so an expanded blocked row
-shows what was lost.
+So the fit score is the **hiring-manager** read alone. The HR read is stored
+separately and never folded into it:
 
-The gate **marks, never hides**. `detectSponsorship` in `extension/detect.js` is
-a heuristic over posting prose and will misread some. A collapsed `blocked (N)`
-section costs nothing and guarantees a regex never silently eats a real
-opportunity.
+- `hr_verdict` — `pass`, `drag`, or `fail`
+- `hr_note` — which filter, e.g. _"Dec 2026 graduation reads as unavailable"_
 
-### Decision thresholds
+The two known standing HR drags, neither fixable by writing: under two years of
+experience, and a December 2026 graduation date.
+
+A job can be `tailor` with `hr_verdict = 'fail'`. That is not a contradiction —
+it means the page is worth writing and the application needs a referral rather
+than a portal.
+
+### Decision
 
 ```
-blocked   sponsorship refused        (checked first, wins)
+blocked   any gate fired
 tailor    fit_score >= 70
-general   fit_score 45-69            + resume_target
+general   fit_score 45-69   + resume_target
 skip      fit_score < 45
 ```
 
 ### Resume routing
 
-Two axes, evaluated only for the `general` tier — a job being tailored has no
-use for the answer.
+`frank-resume` names three general resumes, not the role x industry matrix this
+spec first assumed:
 
-- **Role archetype:** Operations / Product (AI) / Data. Classified from the JD.
-- **Industry:** Retail / Bio. Already parsed by `src/lib/parsePosting.ts`.
+| `resume_target` | Use for                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------ |
+| `operations`    | Manufacturing, supply chain, S&OP, demand planning, technical/business operations                |
+| `data`          | Data analyst, BA, BI, analytics engineering, reporting, data quality. **Default when ambiguous** |
+| `insights`      | Commercial analytics, brand and marketing insights, field and sales analytics. **Not yet built** |
 
-`resume_target` stores the pair as a slug, e.g. `ops-retail`, `data-bio`.
+And a warning worth honouring: Operations and Data are _"one page with a project
+swap, not two positionings."_ Do not manufacture a distinction between them.
+
+`resume_target` is null for `tailor` rows, where the answer is irrelevant.
 
 ## Schema
 
 Additive columns on `public.job_queue`. Nothing existing changes.
 
 ```sql
-fit_problem     int,         -- 0-45
-fit_skills      int,         -- 0-30
-fit_experience  int,         -- 0-25
+fit_problem     int,          -- 0-45
+fit_skills      int,          -- 0-30
+fit_experience  int,          -- 0-25
 fit_score       int generated always as
                 (fit_problem + fit_skills + fit_experience) stored,
-fit_decision    text,        -- tailor | general | skip | blocked
-fit_reason      text,        -- the line actually read
-resume_target   text,        -- 'data-bio' etc.; null when tailoring
-sponsorship     text,        -- refused | offered | unknown
-scored_at       timestamptz  -- null means unscored; the batch key
+fit_decision    text,         -- tailor | general | skip | blocked
+fit_reason      text,         -- the hiring-manager read, one line
+hr_verdict      text,         -- pass | drag | fail
+hr_note         text,         -- which filter, when not a pass
+gate            text,         -- years | system | salary | clearance | authorization
+soft_floor      boolean,      -- an equivalency clause was found
+resume_target   text,         -- operations | data | insights; null when tailoring
+scored_at       timestamptz   -- null means unscored; the batch key
 ```
 
 `fit_score` is generated rather than written so the total cannot drift from its
 parts. `scored_at is null` is the entire batching strategy: cost tracks new
-captures, not queue size, and no job is ever paid for twice.
+captures, not queue size, and no job is paid for twice.
 
-Sub-scores are stored separately rather than rolled up because the breakdown is
-what makes a score arguable — a 58 that lost its points on skills means
-something different from a 58 that lost them on problem overlap.
+Sub-scores are stored separately because the breakdown is what makes a score
+arguable — a 58 that lost its points on skills means something different from a
+58 that lost them on problem overlap.
 
 ## How scoring runs
 
@@ -133,20 +190,33 @@ subscription.
 
 ### Where the LLM sits
 
-| Step | Executor |
-|---|---|
-| Fetch unscored rows | script |
-| Sponsorship gate | script — the extension's regex ran at capture |
-| Industry | script — `parsePosting.ts` already parses it |
-| Read the JD, name the problems the team has | model |
-| Compare those against actual project history | model |
-| Assign sub-scores, write the reason | model |
-| Classify role archetype | model |
-| Write back, sort, display | script |
+| Step                                         | Executor                                     |
+| -------------------------------------------- | -------------------------------------------- |
+| Fetch unscored rows                          | script                                       |
+| Soft-floor and years detection               | script — text patterns, auditable            |
+| Industry                                     | script — `parsePosting.ts` already parses it |
+| Read the JD, name the problems the team has  | model                                        |
+| Compare those against actual project history | model                                        |
+| Assign sub-scores, write the reason          | model                                        |
+| Classify role archetype                      | model                                        |
+| Write back, sort, display                    | script                                       |
 
 Only judgment over prose is modelled. Everything mechanical stays deterministic,
 and therefore testable — which matches the existing rule that `lib/` holds pure,
 unit-tested functions.
+
+### What the extension does not give us
+
+The bento signals in `extension/detect.js` are computed in the page for display
+and **never persisted** — `background.js` sends only company, position,
+description and posted note. Gate detection therefore runs over the stored
+`description` at scoring time. This is the better arrangement anyway: it works
+retroactively over every row already captured, and a change to the pattern list
+can be re-run rather than requiring a re-capture.
+
+Two fields are worse off than that. `salary` and `workplace_type` are empty on
+all 48 rows — never captured at all. The salary gate cannot be evaluated from
+structured data and must be read out of the description.
 
 ### Authentication
 
@@ -171,21 +241,26 @@ Claude Code
 
 `src/components/QueueList.tsx` sorts by decision, then `fit_score` descending.
 
-- Each row carries a decision badge and its `fit_reason` line.
-- `general` rows show `resume_target`.
-- `skip` collapses into a count.
-- `blocked` collapses separately, expandable, showing the fit score that was
-  forfeited.
-- Unscored rows sort last and read "unscored" rather than showing a zero.
+Bands render in order: `tailor`, `general`, unscored, then `skip` and `blocked`
+collapsed behind their counts.
+
+- Each row carries its score, the three sub-scores, and the `fit_reason` line.
+- The HR verdict sits beside the score as its own chip, never merged into it.
+  A `tailor` row with `hr_verdict = 'fail'` is a legitimate and informative
+  state: write the page, find a referral.
+- `general` rows name their `resume_target`.
+- `blocked` rows name the gate that fired and still show the forfeited score.
+- Unscored rows read "unscored" rather than showing a zero.
 
 ## Testing
 
 Pure functions in `src/lib/`, following the existing pattern:
 
-- `decisionFor(parts, sponsorship)` — thresholds and gate precedence. The gate
-  beating a high score is the case worth pinning.
-- `resumeTargetFor(archetype, industry)` — slug construction.
-- Sorting order, including where unscored rows land.
+- `groupOf(job)` — which band a row belongs to, including the precedence of a
+  gate over a high score. A job scoring 88 behind a `years` gate must land in
+  `blocked`, and that is the case worth pinning.
+- `sortQueue(jobs)` — band order, then score descending, then capture date.
+- `groupQueue(jobs)` — the counts the collapsed sections display.
 
 Model judgment is not unit-testable and is not tested. It is validated by a dry
 run over real queue rows, reviewed by hand before any write-back.

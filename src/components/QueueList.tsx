@@ -1,6 +1,16 @@
 import { useState } from 'react';
 import type { QueuedJob } from '../data/queue';
 import { MONTHS } from '../lib/schema';
+import {
+  BANDS,
+  COLLAPSED,
+  DIMENSIONS,
+  bandLabel,
+  gateLabel,
+  groupQueue,
+  targetLabel,
+  type Band,
+} from '../lib/triage';
 import { SANS, SERIF } from './styles';
 
 /** Stroke weight and sizing follow the tool-rail icons, so they read as a set. */
@@ -39,6 +49,153 @@ function CheckIcon() {
       <path d="M20 6 9 17l-5-5" />
     </svg>
   );
+}
+
+/** Per-dimension colour, so the breakdown reads as three things, not one bar. */
+const DIMENSION_COLOURS = ['#41678a', '#5f8a6a', '#a08256'];
+
+/**
+ * The score and what it is made of.
+ *
+ * The breakdown is shown rather than hidden because a bare total is not
+ * arguable: a 58 that lost its points on skills means something different from
+ * one that lost them on problem overlap, and only the parts say which.
+ */
+function ScoreBlock({ job }: { job: QueuedJob }) {
+  if (job.scoredAt == null) {
+    return (
+      <div style={{ flex: 'none', width: 58, textAlign: 'center' }}>
+        <div style={{ fontFamily: SANS, fontSize: 10, color: '#c2c8cf', letterSpacing: '.06em' }}>
+          UNSCORED
+        </div>
+      </div>
+    );
+  }
+  const muted = job.gate != null;
+  return (
+    <div style={{ flex: 'none', width: 58 }}>
+      <div
+        style={{
+          fontFamily: SERIF,
+          fontSize: 23,
+          fontWeight: 600,
+          lineHeight: 1,
+          textAlign: 'center',
+          color: muted ? '#b3a998' : '#2c3640',
+        }}
+      >
+        {job.fitScore ?? '—'}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 5 }}>
+        {DIMENSIONS.map((d, i) => {
+          const value = job[d.key] ?? 0;
+          return (
+            <div
+              key={d.key}
+              title={`${d.label} ${value}/${d.max}`}
+              style={{ height: 3, background: '#ece6d9', borderRadius: 2, overflow: 'hidden' }}
+            >
+              <div
+                style={{
+                  width: `${Math.min(100, (value / d.max) * 100)}%`,
+                  height: '100%',
+                  background: muted ? '#cfc8b9' : DIMENSION_COLOURS[i],
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const HR_COLOURS = { pass: '#3f7d55', drag: '#a07a33', fail: '#a35242' } as const;
+
+/**
+ * The HR read, beside the score and never folded into it.
+ *
+ * HR applies hard filters; a hiring manager reads the whole page. They reach
+ * opposite verdicts often enough that averaging them would destroy the only
+ * useful part — a row can be worth tailoring *and* likely to fail a portal
+ * filter, which is what makes it a referral rather than an application.
+ */
+function HrChip({ job }: { job: QueuedJob }) {
+  if (!job.hrVerdict) return null;
+  return (
+    <span
+      title={job.hrNote || undefined}
+      style={{
+        fontFamily: SANS,
+        fontSize: 10,
+        letterSpacing: '.07em',
+        color: HR_COLOURS[job.hrVerdict],
+        border: `1px solid ${HR_COLOURS[job.hrVerdict]}44`,
+        borderRadius: 4,
+        padding: '1px 5px',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      HR {job.hrVerdict.toUpperCase()}
+    </span>
+  );
+}
+
+/** The badge naming what to do, or what stopped it. */
+function DecisionBadge({ job }: { job: QueuedJob }) {
+  if (job.gate) {
+    return (
+      <span
+        style={{
+          fontFamily: SANS,
+          fontSize: 10,
+          letterSpacing: '.07em',
+          color: '#a35242',
+          border: '1px solid #a3524244',
+          borderRadius: 4,
+          padding: '1px 5px',
+        }}
+      >
+        {gateLabel(job.gate).toUpperCase()}
+      </span>
+    );
+  }
+  if (job.decision === 'tailor') {
+    return (
+      <span
+        style={{
+          fontFamily: SANS,
+          fontSize: 10,
+          letterSpacing: '.07em',
+          fontWeight: 600,
+          color: '#f4f2ec',
+          background: '#41678a',
+          borderRadius: 4,
+          padding: '2px 6px',
+        }}
+      >
+        TAILOR
+      </span>
+    );
+  }
+  if (job.decision === 'general' && job.resumeTarget) {
+    return (
+      <span
+        style={{
+          fontFamily: SANS,
+          fontSize: 10,
+          letterSpacing: '.07em',
+          color: '#41678a',
+          border: '1px solid #41678a44',
+          borderRadius: 4,
+          padding: '1px 5px',
+        }}
+      >
+        {targetLabel(job.resumeTarget).toUpperCase()}
+      </span>
+    );
+  }
+  return null;
 }
 
 /**
@@ -89,6 +246,231 @@ export function QueueList({
     if (!Number.isFinite(ts)) return '';
     const d = new Date(ts);
     return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+  };
+
+  // Which collapsed bands the user has opened this visit. Not persisted: the
+  // point of collapsing them is that they start out of the way each time.
+  const [shown, setShown] = useState<Partial<Record<Band, boolean>>>({});
+  const grouped = groupQueue(jobs);
+
+  const renderRow = (j: QueuedJob) => {
+    const isOpen = !!open[j.id];
+    return (
+      <div
+        key={j.id}
+        style={{
+          background: '#fff',
+          border: '1px solid #e2dccd',
+          borderRadius: 9,
+          padding: '14px 16px',
+          marginBottom: 10,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{j.company || '—'}</div>
+            <div
+              style={{
+                fontSize: 13,
+                color: '#41678a',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {j.position || '—'}
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 7,
+                marginTop: 5,
+              }}
+            >
+              <span style={{ fontFamily: SANS, fontSize: 11, color: '#8b939e' }}>
+                {[j.location, when(j.capturedAt), j.workplaceType].filter(Boolean).join(' · ')}
+              </span>
+              <DecisionBadge job={j} />
+              <HrChip job={j} />
+              {j.softFloor && (
+                <span
+                  title="Carries an equivalency or new-grad clause — the only thing that overrides a years floor"
+                  style={{
+                    fontFamily: SANS,
+                    fontSize: 10,
+                    letterSpacing: '.07em',
+                    color: '#3f7d55',
+                    border: '1px solid #3f7d5544',
+                    borderRadius: 4,
+                    padding: '1px 5px',
+                  }}
+                >
+                  SOFT FLOOR
+                </span>
+              )}
+            </div>
+
+            {j.reason && (
+              <div
+                style={{
+                  marginTop: 7,
+                  fontSize: 12.5,
+                  lineHeight: 1.55,
+                  color: '#5f6a75',
+                  borderLeft: '2px solid #e2dccd',
+                  paddingLeft: 9,
+                }}
+              >
+                {j.reason}
+              </div>
+            )}
+            {j.hrVerdict && j.hrVerdict !== 'pass' && j.hrNote && (
+              <div
+                style={{
+                  marginTop: 4,
+                  fontFamily: SANS,
+                  fontSize: 11,
+                  color: '#a07a33',
+                  paddingLeft: 11,
+                }}
+              >
+                {j.hrNote}
+              </div>
+            )}
+          </div>
+
+          <ScoreBlock job={j} />
+
+          <a
+            href={j.applyUrl || j.jobUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            // Falls back to the posting when there is no employer link,
+            // which is every Easy Apply capture.
+            title={j.applyUrl ? 'Open the employer’s application page' : 'Open on LinkedIn'}
+            style={{
+              flex: 'none',
+              background: 'transparent',
+              border: '1px solid #cfc8b9',
+              borderRadius: 7,
+              padding: '7px 14px',
+              fontSize: 12.5,
+              color: '#41678a',
+            }}
+          >
+            Apply ↗
+          </a>
+
+          <button
+            onClick={() => onPromote(j)}
+            disabled={busyId === j.id}
+            style={{
+              flex: 'none',
+              background: '#41678a',
+              border: '1px solid #41678a',
+              borderRadius: 7,
+              padding: '7px 14px',
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: '#f4f2ec',
+              opacity: busyId === j.id ? 0.7 : 1,
+            }}
+          >
+            Add to tracker
+          </button>
+
+          <button
+            onClick={() => onRemove(j.id)}
+            disabled={busyId === j.id}
+            aria-label={`Remove ${j.position || 'job'}`}
+            title="Remove"
+            style={{
+              flex: 'none',
+              background: 'transparent',
+              border: 'none',
+              color: '#a99f8e',
+              fontSize: 17,
+              lineHeight: 1,
+              padding: '0 2px',
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+          <button
+            onClick={() => setOpen((o) => ({ ...o, [j.id]: !o[j.id] }))}
+            aria-expanded={isOpen}
+            disabled={!j.description}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              fontFamily: SANS,
+              fontSize: 11,
+              letterSpacing: '.08em',
+              color: j.description ? '#6b7078' : '#c2c8cf',
+              cursor: j.description ? 'pointer' : 'default',
+            }}
+          >
+            <span style={{ fontSize: 10 }}>{isOpen ? '▾' : '▸'}</span>
+            {j.description
+              ? `JOB DESCRIPTION (${j.description.length.toLocaleString()} chars)`
+              : 'NO DESCRIPTION CAPTURED'}
+          </button>
+
+          {j.description && (
+            <button
+              onClick={() => void copyDescription(j)}
+              aria-label={
+                copied?.id === j.id && copied.ok ? 'Description copied' : 'Copy description'
+              }
+              title={copied?.id === j.id && !copied.ok ? 'Copy failed' : 'Copy the description'}
+              style={{
+                marginLeft: 'auto',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 26,
+                height: 26,
+                background: 'transparent',
+                border: '1px solid #ddd6c8',
+                borderRadius: 6,
+                padding: 0,
+                color: copied?.id === j.id ? (copied.ok ? '#3f7d55' : '#a35242') : '#8b939e',
+              }}
+            >
+              {copied?.id === j.id && copied.ok ? <CheckIcon /> : <CopyIcon />}
+            </button>
+          )}
+        </div>
+
+        {isOpen && j.description && (
+          <div
+            style={{
+              marginTop: 10,
+              paddingTop: 12,
+              borderTop: '1px dashed #e2dccd',
+              maxHeight: 380,
+              overflow: 'auto',
+              fontSize: 12.5,
+              lineHeight: 1.65,
+              color: '#37414c',
+              // The capture keeps the posting's own line breaks.
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            {j.description}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -171,176 +553,42 @@ export function QueueList({
         )}
 
         {load === 'ready' &&
-          jobs.map((j) => {
-            const isOpen = !!open[j.id];
+          BANDS.map((band) => {
+            const rows = grouped[band];
+            if (rows.length === 0) return null;
+            // Skip and blocked are kept behind their count: nothing in them
+            // needs a decision, and they exist so a heuristic can be audited
+            // rather than trusted silently.
+            const collapsible = COLLAPSED.includes(band);
+            const hidden = collapsible && !shown[band];
             return (
-              <div
-                key={j.id}
-                style={{
-                  background: '#fff',
-                  border: '1px solid #e2dccd',
-                  borderRadius: 9,
-                  padding: '14px 16px',
-                  marginBottom: 10,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{j.company || '—'}</div>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: '#41678a',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {j.position || '—'}
-                    </div>
-                    <div
-                      style={{ fontFamily: SANS, fontSize: 11, color: '#8b939e', marginTop: 3 }}
-                    >
-                      {[j.location, when(j.capturedAt), j.workplaceType].filter(Boolean).join(' · ')}
-                    </div>
-                  </div>
-
-                  <a
-                    href={j.applyUrl || j.jobUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    // Falls back to the posting when there is no employer link,
-                    // which is every Easy Apply capture.
-                    title={j.applyUrl ? 'Open the employer’s application page' : 'Open on LinkedIn'}
-                    style={{
-                      flex: 'none',
-                      background: 'transparent',
-                      border: '1px solid #cfc8b9',
-                      borderRadius: 7,
-                      padding: '7px 14px',
-                      fontSize: 12.5,
-                      color: '#41678a',
-                    }}
-                  >
-                    Apply ↗
-                  </a>
-
-                  <button
-                    onClick={() => onPromote(j)}
-                    disabled={busyId === j.id}
-                    style={{
-                      flex: 'none',
-                      background: '#41678a',
-                      border: '1px solid #41678a',
-                      borderRadius: 7,
-                      padding: '7px 14px',
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                      color: '#f4f2ec',
-                      opacity: busyId === j.id ? 0.7 : 1,
-                    }}
-                  >
-                    Add to tracker
-                  </button>
-
-                  <button
-                    onClick={() => onRemove(j.id)}
-                    disabled={busyId === j.id}
-                    aria-label={`Remove ${j.position || 'job'}`}
-                    title="Remove"
-                    style={{
-                      flex: 'none',
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#a99f8e',
-                      fontSize: 17,
-                      lineHeight: 1,
-                      padding: '0 2px',
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-
-                <div
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}
+              <section key={band} style={{ marginBottom: hidden ? 8 : 22 }}>
+                <button
+                  onClick={() => collapsible && setShown((v) => ({ ...v, [band]: !v[band] }))}
+                  aria-expanded={collapsible ? !hidden : undefined}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    padding: '0 0 9px',
+                    fontFamily: SANS,
+                    fontSize: 11,
+                    letterSpacing: '.12em',
+                    color: band === 'tailor' ? '#41678a' : '#8b939e',
+                    cursor: collapsible ? 'pointer' : 'default',
+                  }}
                 >
-                  <button
-                    onClick={() => setOpen((o) => ({ ...o, [j.id]: !o[j.id] }))}
-                    aria-expanded={isOpen}
-                    disabled={!j.description}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 7,
-                      background: 'transparent',
-                      border: 'none',
-                      padding: 0,
-                      fontFamily: SANS,
-                      fontSize: 11,
-                      letterSpacing: '.08em',
-                      color: j.description ? '#6b7078' : '#c2c8cf',
-                      cursor: j.description ? 'pointer' : 'default',
-                    }}
-                  >
-                    <span style={{ fontSize: 10 }}>{isOpen ? '▾' : '▸'}</span>
-                    {j.description
-                      ? `JOB DESCRIPTION (${j.description.length.toLocaleString()} chars)`
-                      : 'NO DESCRIPTION CAPTURED'}
-                  </button>
-
-                  {j.description && (
-                    <button
-                      onClick={() => void copyDescription(j)}
-                      aria-label={
-                        copied?.id === j.id && copied.ok
-                          ? 'Description copied'
-                          : 'Copy description'
-                      }
-                      title={
-                        copied?.id === j.id && !copied.ok
-                          ? 'Copy failed'
-                          : 'Copy the description'
-                      }
-                      style={{
-                        marginLeft: 'auto',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 26,
-                        height: 26,
-                        background: 'transparent',
-                        border: '1px solid #ddd6c8',
-                        borderRadius: 6,
-                        padding: 0,
-                        color:
-                          copied?.id === j.id ? (copied.ok ? '#3f7d55' : '#a35242') : '#8b939e',
-                      }}
-                    >
-                      {copied?.id === j.id && copied.ok ? <CheckIcon /> : <CopyIcon />}
-                    </button>
+                  {collapsible && (
+                    <span style={{ fontSize: 9 }}>{hidden ? '\u25b8' : '\u25be'}</span>
                   )}
-                </div>
-
-                {isOpen && j.description && (
-                  <div
-                    style={{
-                      marginTop: 10,
-                      paddingTop: 12,
-                      borderTop: '1px dashed #e2dccd',
-                      maxHeight: 380,
-                      overflow: 'auto',
-                      fontSize: 12.5,
-                      lineHeight: 1.65,
-                      color: '#37414c',
-                      // The capture keeps the posting's own line breaks.
-                      whiteSpace: 'pre-wrap',
-                    }}
-                  >
-                    {j.description}
-                  </div>
-                )}
-              </div>
+                  {bandLabel(band).toUpperCase()}
+                  <span style={{ color: '#b9bfc7' }}>{rows.length}</span>
+                </button>
+                {!hidden && rows.map(renderRow)}
+              </section>
             );
           })}
       </div>

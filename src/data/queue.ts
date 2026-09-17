@@ -10,10 +10,12 @@
  */
 
 import { requireSupabase } from '../lib/supabase';
+import type { Decision, Gate, HrVerdict, ResumeTarget } from '../lib/triage';
 
 const TABLE = 'job_queue';
 const COLUMNS =
-  'id,source,external_id,company,position,location_raw,job_url,apply_url,description,salary,workplace_type,posted_note,created_at';
+  'id,source,external_id,company,position,location_raw,job_url,apply_url,description,salary,workplace_type,posted_note,created_at,' +
+  'fit_problem,fit_skills,fit_experience,fit_score,fit_decision,fit_reason,hr_verdict,hr_note,gate,soft_floor,resume_target,scored_at';
 
 /** A job captured from a posting but not applied to yet. */
 export type QueuedJob = {
@@ -40,6 +42,28 @@ export type QueuedJob = {
   postedNote: string;
   /** When it was captured. */
   capturedAt: number;
+
+  // --- Triage. Written by a Claude Code session, never by the app. All null
+  // until a job has been scored, which is an ordinary state and not an error.
+
+  fitProblem: number | null;
+  fitSkills: number | null;
+  fitExperience: number | null;
+  /** Generated in Postgres from the three above, so it cannot drift. */
+  fitScore: number | null;
+  decision: Decision | null;
+  /** The hiring-manager read: one line naming the deciding factor. */
+  reason: string;
+  /** The HR read, kept separate — the two routinely disagree. */
+  hrVerdict: HrVerdict | null;
+  hrNote: string;
+  /** Which gate disqualified it, if one did. */
+  gate: Gate | null;
+  /** An equivalency clause was found, which suppresses the years gate. */
+  softFloor: boolean | null;
+  /** Which general resume to send. Null when tailoring. */
+  resumeTarget: ResumeTarget | null;
+  scoredAt: number | null;
 };
 
 /** Shape as stored. Mirrors supabase/migrations/20260913000000_job_queue.sql. */
@@ -57,6 +81,18 @@ type Row = {
   workplace_type: string;
   posted_note: string;
   created_at: string;
+  fit_problem: number | null;
+  fit_skills: number | null;
+  fit_experience: number | null;
+  fit_score: number | null;
+  fit_decision: Decision | null;
+  fit_reason: string | null;
+  hr_verdict: HrVerdict | null;
+  hr_note: string | null;
+  gate: Gate | null;
+  soft_floor: boolean | null;
+  resume_target: ResumeTarget | null;
+  scored_at: string | null;
 };
 
 export function toQueuedJob(row: Row): QueuedJob {
@@ -74,6 +110,19 @@ export function toQueuedJob(row: Row): QueuedJob {
     workplaceType: row.workplace_type,
     postedNote: row.posted_note,
     capturedAt: Date.parse(row.created_at),
+    fitProblem: row.fit_problem,
+    fitSkills: row.fit_skills,
+    fitExperience: row.fit_experience,
+    // The generated column is null only while all three parts are null.
+    fitScore: row.scored_at == null ? null : row.fit_score,
+    decision: row.fit_decision,
+    reason: row.fit_reason ?? '',
+    hrVerdict: row.hr_verdict,
+    hrNote: row.hr_note ?? '',
+    gate: row.gate,
+    softFloor: row.soft_floor,
+    resumeTarget: row.resume_target,
+    scoredAt: row.scored_at == null ? null : Date.parse(row.scored_at),
   };
 }
 
