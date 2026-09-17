@@ -22,15 +22,43 @@ function currentJobId() {
 }
 
 /**
+ * The posting's primary action: the off-site Apply link, or the Easy Apply
+ * button. Everything that needs to locate the card hangs off this, so both
+ * kinds of posting are found the same way.
+ */
+function applyAnchor() {
+  // Both kinds of control, in one list. Order does not decide the winner —
+  // visibility does — because a posting is only ever one of the two.
+  const candidates = [
+    ...document.querySelectorAll('a[href*="/safety/go/?url="]'),
+    ...document.querySelectorAll(
+      'a[aria-label^="Easy Apply" i], button[aria-label^="Easy Apply" i]',
+    ),
+  ];
+
+  // Only a control that is actually rendered counts. The SPA keeps previously
+  // viewed postings in the DOM, so a stale off-site Apply link from an earlier
+  // job is still matchable — and taking it would label an Easy Apply posting as
+  // off-site and file it under another company's application URL.
+  return (
+    candidates.find((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    }) ?? null
+  );
+}
+
+/**
  * The employer's application page, unwrapped from LinkedIn's redirect.
  *
- * Off-site postings render an <a> whose href is
- * `/safety/go/?url=<encoded employer url>`; `searchParams` decodes it for us.
- * Easy Apply renders a <button> instead and has no off-site URL, so null.
+ * Read from the same anchor the card was found by, so the answer can never
+ * describe a different posting than the one on screen. Null for Easy Apply,
+ * which is handled inside LinkedIn and has no off-site URL.
  */
 function applyUrl() {
-  const a = document.querySelector('a[href*="/safety/go/?url="]');
-  if (!a) return null;
+  const a = applyAnchor();
+  const href = a?.getAttribute('href') ?? '';
+  if (!href.includes('/safety/go/?url=')) return null;
   try {
     return new URL(a.href).searchParams.get('url');
   } catch {
@@ -46,7 +74,7 @@ function applyUrl() {
  * in this DOM. This just gives the panel something to show immediately.
  */
 function visibleHeading() {
-  const a = document.querySelector('a[href*="/safety/go/?url="]');
+  const a = applyAnchor();
   // Walk up from Apply to the card that contains it, then take its first
   // heading — structural, so it survives the class names changing.
   let card = a?.closest('section, div[class]');
@@ -67,7 +95,7 @@ function visibleHeading() {
  * name on the page is hashed and changes between deploys.
  */
 function detailCard() {
-  let el = document.querySelector('a[href*="/safety/go/?url="]')?.parentElement;
+  let el = applyAnchor()?.parentElement;
   // The detail column is wide, but the page wrapper around it is wider still.
   // Climbing to the first merely-wide ancestor overshoots to that wrapper,
   // whose top sits at the top of the document — which is how the panel ended up
@@ -85,53 +113,6 @@ function detailCard() {
 }
 
 /** How deep an element sits, used to prefer the tightest block over its wrappers. */
-function depthOf(el) {
-  let d = 0;
-  for (let p = el.parentElement; p; p = p.parentElement) d++;
-  return d;
-}
-
-/**
- * The job description, read from the pane.
- *
- * The posting's own page carries no ld+json — confirmed against a real capture,
- * which came back with an empty description — so this DOM is the only source.
- * The block is found by measurement rather than by selector: the deepest
- * element holding a substantial amount of text is the description body, and
- * depth is what stops an outer wrapper (which contains it, plus the whole rest
- * of the page) from winning on length alone.
- */
-function visibleDescription() {
-  let best = null;
-  let bestScore = 0;
-
-  // Scored over the whole page rather than a container: the Apply button lives
-  // in the header, so anything anchored to it excludes the description sitting
-  // below. Link density does the separating instead — a description is a long
-  // run of prose with few links, while the results column beside it is equally
-  // long but almost entirely links. Depth breaks ties toward the tightest
-  // wrapper, so an outer layout div never wins over the body it contains.
-  for (const el of document.querySelectorAll('div, section, article')) {
-    const len = (el.textContent || '').trim().length;
-    if (len < 600) continue;
-    const links = el.querySelectorAll('a').length;
-    const score = len / (1 + links * 60) + depthOf(el);
-    if (score > bestScore) {
-      best = el;
-      bestScore = score;
-    }
-  }
-  if (!best) return '';
-
-  // innerText first, since it keeps the line breaks a description depends on;
-  // textContent covers the case where the block is collapsed behind "see more".
-  const text = best.innerText?.trim() || best.textContent?.trim() || '';
-  return text
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .slice(0, 20000);
-}
-
 /** "Chaska, MN" or "Remote", taken from the card's own header line. */
 function visibleLocation() {
   const head = (detailCard()?.innerText || '').slice(0, 600);
@@ -141,7 +122,7 @@ function visibleLocation() {
 }
 
 /**
- * LinkedIn's overflow (…) menu, which owns the corner we want.
+ * LinkedIn's overflow (…) menu, which shares the corner we want.
  *
  * Matched on its aria-label rather than a class, since the labels are real
  * words and the classes are hashes.
@@ -176,14 +157,14 @@ function mountPanel() {
 
   if (getComputedStyle(card).position === 'static') card.style.position = 'relative';
 
-  // Hidden rather than moved. An earlier version shifted it down, which only
-  // relocated the collision — it landed on the signal cells instead. Clearing
-  // any leftover transform keeps an already-open tab from holding a displaced
-  // menu if this ever stops hiding it.
+  // Left in place and simply covered. Hiding it changed the header's height,
+  // which moved the very edge the scroll fade measures against; overlaying it
+  // keeps LinkedIn's layout exactly as it was. Earlier builds moved or hid it,
+  // so undo both for tabs that are still open.
   const menu = overflowMenu(card);
   if (menu) {
-    menu.style.transform = '';
-    menu.style.display = 'none';
+    if (menu.style.transform) menu.style.transform = '';
+    if (menu.style.display === 'none') menu.style.display = '';
   }
 
   const host = document.createElement('div');
@@ -192,7 +173,9 @@ function mountPanel() {
   host.style.top = '12px';
   // Flush to the corner: the … menu is hidden, so nothing to clear.
   host.style.right = '16px';
-  host.style.zIndex = '2';
+  // Above LinkedIn's corner controls, which stay in the DOM underneath.
+  host.style.zIndex = '20';
+  host.style.transition = 'opacity .15s ease';
 
   // Shadow DOM: LinkedIn's stylesheet cannot reach in, and ours cannot leak out.
   const root = host.attachShadow({ mode: 'open' });
@@ -363,7 +346,125 @@ function mountPanel() {
   return root;
 }
 
+/**
+ * LinkedIn's pinned chrome, cached per posting.
+ *
+ * Scanning every element is far too costly to repeat on scroll, but the set of
+ * sticky containers only changes when the page rebuilds — so it is collected
+ * once and only the rects are measured afterwards.
+ */
+let stickyEls = [];
+
+function findSticky() {
+  stickyEls = [...document.querySelectorAll('div, header, section, nav')].filter((el) => {
+    const pos = getComputedStyle(el).position;
+    return pos === 'sticky' || pos === 'fixed';
+  });
+}
+
+/**
+ * How far down the viewport that chrome currently reaches.
+ *
+ * Measured rather than assumed: the header is one height with LinkedIn's …
+ * menu present and another once it is hidden, so any constant is wrong in one
+ * of the two states. Only wide, short bands pinned near the top count — that
+ * rules out full-height sticky sidebars and floating message widgets.
+ */
+function headerBottom() {
+  let bottom = 0;
+  for (const el of stickyEls) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 320 && r.height > 0 && r.height < 240 && r.top < 60) {
+      bottom = Math.max(bottom, r.bottom);
+    }
+  }
+  return bottom;
+}
+
+/**
+ * Hide the panel once it scrolls up behind that chrome.
+ *
+ * It sits inside the card, so it scrolls with the posting and slides under the
+ * pinned header — leaving a sliver of the pill showing, which reads as a
+ * rendering bug. Nothing can clip it (no ancestor owns its overflow), so it
+ * fades instead, and stops taking clicks while out of sight.
+ */
+function updateVisibility() {
+  const host = document.getElementById(PANEL_ID);
+  if (!host) return;
+
+  const behind = host.getBoundingClientRect().top < headerBottom() + 8;
+  host.style.opacity = behind ? '0' : '1';
+  host.style.pointerEvents = behind ? 'none' : 'auto';
+}
+
+/** Scroll fires far faster than paint; coalesce to one measure per frame. */
+let queued = false;
+function onScroll() {
+  if (queued) return;
+  queued = true;
+  requestAnimationFrame(() => {
+    queued = false;
+    updateVisibility();
+  });
+}
+
 let lastJobId = null;
+
+/**
+ * What the button does for the posting on screen.
+ *
+ * Easy Apply postings are applied to inside LinkedIn and have no off-site URL,
+ * so there is nothing useful to queue — the description is the only thing worth
+ * taking away. The panel keeps its signal cells either way.
+ */
+let mode = 'queue';
+
+const WORDING = {
+  queue: { idle: 'Queue', busy: 'Queuing…', done: 'Queued', glyph: '+' },
+  copy: { idle: 'Copy JD', busy: 'Copying…', done: 'Copied', glyph: '⧉' },
+};
+
+/**
+ * Copy text, falling back to a selection when the async API is unavailable.
+ *
+ * navigator.clipboard needs a focused document and a user gesture; a click
+ * satisfies both, but the older path covers the cases where it is still denied.
+ */
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+async function copyDescription() {
+  const text = readDescription();
+  if (!text) return setState('err', 'No description found.');
+
+  setState('saving');
+  const ok = await copyText(text);
+  if (!ok) return setState('err', 'Clipboard blocked.');
+
+  setState('done', `${text.length.toLocaleString()} chars`);
+  // Unlike queueing, copying is repeatable — settle back so it can be pressed
+  // again rather than staying spent.
+  setTimeout(() => setState('idle'), 1800);
+}
 
 /**
  * Fill the three signal cells from the posting's text.
@@ -397,10 +498,11 @@ function setState(state, text) {
   btn.disabled = state === 'saving' || state === 'done';
 
   // Label and knob are written separately, so the knob keeps its own shape.
+  const words = WORDING[mode];
   root.getElementById('label').textContent =
-    state === 'saving' ? 'Queuing…' : state === 'done' ? 'Queued' : 'Queue';
+    state === 'saving' ? words.busy : state === 'done' ? words.done : words.idle;
   root.getElementById('knob').textContent =
-    state === 'done' ? '✓' : state === 'err' ? '!' : '+';
+    state === 'done' ? '✓' : state === 'err' ? '!' : words.glyph;
   root.getElementById('note').textContent = text ?? '';
 }
 
@@ -417,7 +519,7 @@ async function queue() {
     position: visibleHeading(),
     company: '',
     location: visibleLocation(),
-    description: visibleDescription(),
+    description: readDescription(),
   };
 
   console.info('[job-tracker] capturing', {
@@ -431,7 +533,10 @@ async function queue() {
     if (chrome.runtime.lastError) return setState('err', 'Extension reloaded — refresh.');
     if (!res?.ok) {
       const e = res?.error ?? 'Failed.';
-      return setState('err', /not signed in/i.test(e) ? 'Sign in from the toolbar.' : e.slice(0, 90));
+      return setState(
+        'err',
+        /not signed in/i.test(e) ? 'Sign in from the toolbar.' : e.slice(0, 90),
+      );
     }
     setState('done', job.applyUrl ? '' : 'Easy Apply — no employer link');
   });
@@ -457,15 +562,21 @@ function sync() {
   if (!root) return; // Detail pane not rendered yet; the next tick will catch it.
 
   lastJobId = id;
-  root.getElementById('go').onclick = queue;
+  // No off-site URL means Easy Apply: offer the description instead.
+  mode = applyUrl() ? 'queue' : 'copy';
+  console.info('[job-tracker] mounted', { jobId: id, mode });
+  root.getElementById('go').onclick = mode === 'copy' ? copyDescription : queue;
   setState('idle');
-  renderSignals(root, visibleDescription());
+  renderSignals(root, readDescription());
+  findSticky();
+  updateVisibility();
 }
 
 // The SPA swaps postings without navigating, and rebuilds the action row when
 // it does, so poll rather than assume a page load per posting. Cheap, and it
 // covers history changes, in-pane clicks, and back/forward alike.
 setInterval(sync, 600);
+addEventListener('scroll', onScroll, { passive: true, capture: true });
 sync();
 
 // So this script is identifiable in a console full of other extensions.

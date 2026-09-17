@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Job Tracker — Queue",
+  "name": "Job Tracker \u2014 Queue",
   "version": "0.1.0",
   "description": "Queue a LinkedIn job posting into your Job Tracker, to apply to later.",
   "permissions": [
@@ -16,7 +16,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Job Tracker — Queue"
+    "default_title": "Job Tracker \u2014 Queue"
   },
   "content_scripts": [
     {
@@ -25,6 +25,7 @@
       ],
       "js": [
         "detect.js",
+        "description.js",
         "content.js"
       ],
       "run_at": "document_idle"
