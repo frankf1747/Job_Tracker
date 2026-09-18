@@ -254,7 +254,7 @@ describe('industryArcs', () => {
 });
 
 describe('mapCaption', () => {
-  test('splits rows into mapped, remote, unspecified, and Canadian', () => {
+  test('separates a city with no coordinates from a row with no location', () => {
     const rows = [
       app({ location: 'San Francisco, CA' }),
       app({ location: 'Toronto, ON' }),
@@ -262,7 +262,15 @@ describe('mapCaption', () => {
       app({ location: '' }),
       app({ location: 'Reykjavik' }),
     ];
-    expect(mapCaption(rows)).toBe('2 mapped · 1 remote · 2 unspec · 1 in Canada');
+    // Reykjavik is a place this table cannot plot; the empty row is a gap.
+    // Calling both "unspec" hid 55 real cities behind a number that read as
+    // missing data.
+    expect(mapCaption(rows)).toBe('2 mapped · 1 remote · 1 off-map · 1 unspec · 1 in Canada');
+  });
+
+  test('says nothing about off-map cities when there are none', () => {
+    const rows = [app({ location: 'San Francisco, CA' }), app({ location: '' })];
+    expect(mapCaption(rows)).toBe('1 mapped · 0 remote · 1 unspec · 0 in Canada');
   });
 
   test('an empty list reads as all zeroes', () => {

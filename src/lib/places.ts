@@ -143,6 +143,9 @@ const NOT_A_CITY = new Set([
 
 const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
 
+/** "new york" -> "New York". Two-letter codes are upper-cased by asRegion. */
+const titleCase = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
+
 /** Drop a trailing ZIP or country, which trail a place without changing it. */
 const stripTail = (s: string) =>
   clean(s)
@@ -162,7 +165,9 @@ function asCity(raw: string): string | null {
   if (!/^[A-Z]/.test(city)) return null;
   // More than three words stops being a city name.
   if (city.split(' ').length > 3) return null;
-  return city;
+  // Canonical casing, so "NEW YORK", "new york" and "New York" are one key and
+  // therefore one map pin.
+  return titleCase(city);
 }
 
 /** "CA" | "California" -> "CA", or null. */
@@ -192,6 +197,21 @@ function isStateList(city: string, region: string): boolean {
   const asState = US_STATES[key] ?? CA_PROVINCES[key];
   if (asState == null) return false;
   return !(STATE_NAMED_CITIES[key] ?? [asState]).includes(region);
+}
+
+/**
+ * One location string normalised to "City, ST", or null if it is not a place.
+ *
+ * The same rules the posting parser uses, exposed for the stored
+ * `location_raw` column so a value typed by hand, pasted from a posting, or
+ * written by an older version of the parser all resolve the same way.
+ */
+export function canonicalPlace(raw: string): string | null {
+  const s = stripTail(String(raw || ''));
+  // A stored field is typed by a person, so it arrives in any case. Prose is
+  // not, which is why asCity requires a capital — the second attempt supplies
+  // one rather than relaxing the rule for postings too.
+  return asPlace(s) ?? asPlace(titleCase(s));
 }
 
 /** "Webster, NY" out of one fragment, or null. */

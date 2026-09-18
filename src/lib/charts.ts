@@ -282,11 +282,18 @@ export function industryArcs(rows: Application[], selected: string[]): Breakdown
 export function mapCaption(rows: Application[]): string {
   const mapped = rows.filter((r) => r.loc.type === 'city' && r.loc.lat != null).length;
   const remote = rows.filter((r) => r.loc.type === 'remote').length;
-  const unk = rows.filter(
-    (r) => r.loc.type === 'unknown' || (r.loc.type === 'city' && r.loc.lat == null),
-  ).length;
+  // A city with no coordinates and a row with no location were both read as
+  // "unspec", which made 55 perfectly good cities look like missing data. They
+  // are different problems: one is a gap in the coordinate table, the other is
+  // a row that never had a location at all.
+  const offMap = rows.filter((r) => r.loc.type === 'city' && r.loc.lat == null).length;
+  const none = rows.filter((r) => r.loc.type === 'unknown').length;
   const ca = rows.filter((r) => r.loc.country === 'CA').length;
-  return `${mapped} mapped · ${remote} remote · ${unk} unspec · ${ca} in Canada`;
+
+  const parts = [`${mapped} mapped`, `${remote} remote`];
+  if (offMap) parts.push(`${offMap} off-map`);
+  parts.push(`${none} unspec`, `${ca} in Canada`);
+  return parts.join(' · ');
 }
 
 export type HourBar = {

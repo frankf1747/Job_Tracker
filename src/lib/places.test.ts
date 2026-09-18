@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseLocation } from './places';
+import { canonicalPlace, parseLocation } from './places';
 
 describe('parseLocation', () => {
   it('prefers the posting’s own labelled location line', () => {
@@ -102,5 +102,27 @@ describe('a list of states is not a city and a state', () => {
   it('still accepts a city that shares its name with its own state', () => {
     expect(parseLocation('New York, NY')).toBe('New York, NY');
     expect(parseLocation('Washington, DC')).toBe('Washington, DC');
+  });
+});
+
+describe('canonicalPlace', () => {
+  it('normalises a stored location field the same way it reads a posting', () => {
+    expect(canonicalPlace('South San Francisco, California')).toBe('South San Francisco, CA');
+    expect(canonicalPlace('Boston, Massachusetts, 02199-7')).toBe('Boston, MA');
+    expect(canonicalPlace('Santa Clara,CA')).toBe('Santa Clara, CA');
+    expect(canonicalPlace('  Toronto , ON ')).toBe('Toronto, ON');
+  });
+
+  it('completes a bare city it is sure about', () => {
+    expect(canonicalPlace('Los Angeles')).toBe('Los Angeles, CA');
+    expect(canonicalPlace('Salt Lake City')).toBe('Salt Lake City, UT');
+  });
+
+  it('refuses the junk the old parser wrote into the table', () => {
+    // Every one of these is a real value sitting in the applications table.
+    expect(canonicalPlace('Ai Business Analyst, HR')).toBe(null);
+    expect(canonicalPlace('Data Science, AI')).toBe(null);
+    expect(canonicalPlace('United States, NY')).toBe(null);
+    expect(canonicalPlace('Colorado')).toBe(null);
   });
 });
