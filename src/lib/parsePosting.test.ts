@@ -413,3 +413,70 @@ describe('LinkedIn logo alt text before the company name', () => {
     expect(d.location).toBe('Laguna Hills, CA');
   });
 });
+
+/**
+ * A corporate ATS page rather than LinkedIn. The shape is different in every
+ * way that matters: the title line carries the company after a dash, the
+ * locations are a pipe-separated list of bare cities, and the page is wrapped
+ * in résumé-matching furniture that reads like content.
+ */
+const BCG = `(Senior) AI Factory Product Builder, United States - BCG X
+ This job is available in 13 locations See all   This job is associated with 3 categories See all  Job Id
+57679
+
+ Back To Search Results
+
+Let's Strengthen Your Resume
+1 out of 12 keywords matched, add more to make you stand out.
+
+Improve My Match
+23
+Low Match
+Locations: Boston | New York | Brooklyn | Chicago | Miami | Dallas | San Francisco
+
+Who We Are
+
+Boston Consulting Group partners with leaders in business and society.
+
+What You'll Bring
+
+Required:
+Must have hands-on experience with Claude/Markdown-based development
+Required Tool: Claude Code
+GenerativeAI and Agentic development experience
+
+Undergraduate degree required; advanced degree preferred.
+
+The first year base compensation for this role is:
+Analyst: $99,000
+Senior Analyst: $123,800`;
+
+describe('a corporate ATS page', () => {
+  const d = parse(BCG);
+
+  test('splits the title line on its dash to find the employer', () => {
+    // The whole page never says "BCG X" on a line of its own.
+    expect(d.company).toBe('BCG X');
+  });
+
+  test('does not take a job id as the company name', () => {
+    expect(d.company).not.toBe('57679');
+  });
+
+  test('reads the title without the country it is qualified by', () => {
+    expect(d.position).toBe('(Senior) AI Factory Product Builder');
+  });
+
+  test('does not match "graduate" inside "Undergraduate"', () => {
+    // ROLE_RE had no word boundaries, so a requirements line beat the title.
+    expect(d.position).not.toContain('Undergraduate');
+  });
+
+  test('takes the first of a pipe-separated location list', () => {
+    expect(d.location).toBe('Boston, MA');
+  });
+
+  test('records the tools the posting actually requires', () => {
+    expect(d.skills).toContain('Claude Code');
+  });
+});

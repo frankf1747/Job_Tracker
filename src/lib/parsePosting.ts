@@ -116,11 +116,43 @@ const KNOWN_COMPANIES = [
 ];
 
 const ROLE_RE =
-  /(intern|internship|new grad|new-grad|graduate|engineer|analyst|manager|scientist|associate|developer|coordinator|specialist|designer|architect)/i;
+  /\b(intern|internship|new[- ]grad|graduate|engineer|analyst|manager|scientist|associate|developer|coordinator|specialist|designer|architect|builder|consultant|strategist|advisor|director|officer|administrator|researcher|generalist|producer|planner|technician|lead)\b/i;
 
 /** Job-board furniture that is never the company or the position. */
 const BOILERPLATE =
-  /^(save|saved|apply|easy apply|about the job|about us|about the role|job purpose|job description|promoted|posted|reposted|show more|see more|did you finish|responses managed|people you can reach|hiring|be an early applicant|no longer accepting|full[-\s]?time|part[-\s]?time|contract|temporary|internship|on-?site|remote|hybrid|entry level|mid-senior|associate level|\d+ (applicant|people)|you applied for this job|view application|view all|locations?|time type|job requisition id|option to work remote)/i;
+  /^(save|saved|apply|easy apply|about the job|about us|about the role|job purpose|job description|promoted|posted|reposted|show more|see more|did you finish|responses managed|people you can reach|hiring|be an early applicant|no longer accepting|full[-\s]?time|part[-\s]?time|contract|temporary|internship|on-?site|remote|hybrid|entry level|mid-senior|associate level|\d+ (applicant|people)|you applied for this job|view application|view all|locations?|time type|job requisition id|option to work remote|see all|back to search|job id|improve my match|low match|high match|strengthen your resume|\d+ out of \d+ keywords|this job is (available|associated)|additional info|key competencies|key responsibilities|what you.{0,4}ll (do|bring)|who we are|required tool)/i;
+
+/**
+ * "Title - Company", the shape a corporate ATS puts at the top of its page.
+ *
+ * On those pages the employer often appears nowhere else as a line of its own,
+ * so without this the company falls through to whatever furniture comes next —
+ * a job id, in the posting that prompted this.
+ *
+ * A spaced hyphen or pipe only. An em dash is how titles qualify themselves
+ * ("Data Analytics Intern — Summer 2026") and splitting there would name the
+ * season as the employer.
+ */
+const TITLE_COMPANY = /^(.{4,70}?)\s+[-|]\s+([^\s-][^|]{1,38})$/;
+
+/** A country or work mode the title is qualified by, not part of the role. */
+const TITLE_TAIL =
+  /,\s*(?:United States|USA?|Canada|United Kingdom|UK|EMEA|APAC|Remote|Hybrid|On-?site)\s*$/i;
+
+/** The title and employer out of one line, when it carries both. */
+export function splitTitleCompany(line: string): { position: string; company: string } | null {
+  const m = TITLE_COMPANY.exec(line.trim());
+  if (!m) return null;
+  const position = clean(m[1]).replace(TITLE_TAIL, '').trim();
+  const company = clean(m[2]);
+  // The tail has to be a name. "Analyst - Remote" and "Analyst - Full-time"
+  // are a location and a job type wearing the same punctuation.
+  if (!/[A-Za-z]/.test(company)) return null;
+  if (BOILERPLATE.test(company) || looksLikeLocation(company) || looksLikeRole(company))
+    return null;
+  if (!looksLikeRole(position)) return null;
+  return { position, company };
+}
 
 /** A line that is only a place, e.g. "Toronto, ON · 6 days ago". */
 const LOCATION_LINE = /^[A-Za-z.\-' ]{2,30},\s*[A-Z]{2}\b/;
@@ -256,11 +288,19 @@ export function guessCompany(lines: string[], text: string): string {
   const known = KNOWN_COMPANIES.find((n) => head.some((l) => wordRe(n).test(l)));
   if (known) return known;
 
+  // A title line that carries the employer after a dash.
+  for (const l of head) {
+    const split = splitTitleCompany(l);
+    if (split) return split.company;
+  }
+
   // Otherwise the first line up top that reads like a name rather than a title,
   // a place, or job-board furniture.
   for (const l of head) {
     if (looksLikeRole(l) || looksLikeLocation(l) || BOILERPLATE.test(l)) continue;
     if (l.length < 2 || l.length > 40) continue;
+    // A requisition number is not a name.
+    if (!/[A-Za-z]/.test(l)) continue;
     return clean(l);
   }
 
@@ -278,7 +318,10 @@ export function guessCompany(lines: string[], text: string): string {
 
 export function guessPosition(lines: string[], text: string): string {
   const line = lines.find((l) => looksLikeRole(l) && l.length <= 72 && !BOILERPLATE.test(l));
-  if (line) return clean(line);
+  if (line) {
+    const split = splitTitleCompany(line);
+    return split ? split.position : clean(line).replace(TITLE_TAIL, '').trim();
+  }
 
   // Anchored to a whole line. Unanchored, this matched "a critical role in
   // driving collaborative planning…" and used that as the job title.

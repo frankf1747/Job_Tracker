@@ -126,3 +126,16 @@ describe('canonicalPlace', () => {
     expect(canonicalPlace('Colorado')).toBe(null);
   });
 });
+
+describe('a labelled list of locations', () => {
+  it('takes the first city a posting offers', () => {
+    expect(
+      parseLocation('Locations: Boston | New York | Brooklyn | Chicago | San Francisco'),
+    ).toBe('Boston, MA');
+  });
+
+  it('handles the other separators postings use', () => {
+    expect(parseLocation('Location: Seattle, WA; Austin, TX')).toBe('Seattle, WA');
+    expect(parseLocation('Locations: Toronto / Vancouver')).toBe('Toronto, ON');
+  });
+});

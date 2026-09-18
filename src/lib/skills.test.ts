@@ -92,3 +92,15 @@ describe('the employer is not a skill', () => {
     );
   });
 });
+
+describe('the agentic stack', () => {
+  it('records the tools these postings are actually built around', () => {
+    const text = 'Required Tool: Claude Code. Agents built with MCP and a RAG knowledge base.';
+    const found = extractSkills(text);
+    expect(found).toEqual(expect.arrayContaining(['Claude Code', 'MCP', 'RAG']));
+  });
+
+  it('does not find RAG inside an ordinary word', () => {
+    expect(extractSkills('We drag reports into the dashboard.')).not.toContain('RAG');
+  });
+});

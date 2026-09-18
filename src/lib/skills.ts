@@ -25,6 +25,11 @@
 const TIERS: string[][] = [
   // Distinctive: naming one of these narrows the role immediately.
   [
+    'Claude Code',
+    'MCP',
+    'RAG',
+    'Prompt Engineering',
+    'AI Agents',
     'Databricks',
     'Snowflake',
     'dbt',
@@ -93,6 +98,11 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const SPECIAL: Record<string, RegExp> = {
   R: /(?<![A-Za-z&(])R(?![A-Za-z&)])/,
   'A/B Testing': /\bA\/B\b/i,
+  // Case-sensitive: lower-case "rag" and "mcp" are words and initials, and a
+  // posting that means the technique writes it in capitals.
+  RAG: /\bRAG\b/,
+  MCP: /\bMCP\b/,
+  'AI Agents': /\bAI agents?\b|\bagentic\b/i,
 };
 
 function matcher(skill: string): RegExp {

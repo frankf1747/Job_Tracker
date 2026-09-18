@@ -236,6 +236,21 @@ function asPlace(raw: string): string | null {
   return null;
 }
 
+/**
+ * The first place in a list a posting offers.
+ *
+ * "Locations: Boston | New York | Brooklyn" is one line naming thirteen
+ * offices. Read whole it is not a place at all, so the line was discarded and
+ * the field left empty. Postings lead with the office they mean most.
+ */
+function firstOf(value: string): string | null {
+  for (const part of String(value).split(/\s*[|/;\u2022]\s*|\s+or\s+/)) {
+    const place = asPlace(stripTail(part));
+    if (place) return place;
+  }
+  return null;
+}
+
 /** Labels a posting uses for the line that names where the job is. */
 const LABEL = /^\s*(?:position\s+)?(?:office\s+|work\s+|job\s+)?locations?\s*[:\-–]?\s*(.*)$/i;
 
@@ -261,12 +276,12 @@ export function parseLocation(text: string): string {
   for (let i = 0; i < lines.length; i++) {
     const m = LABEL.exec(lines[i]);
     if (!m) continue;
-    const here = m[1] ? asPlace(m[1]) : null;
+    const here = m[1] ? firstOf(m[1]) : null;
     if (here) return here;
     if (m[1] && /^remote\b/i.test(clean(m[1]))) return 'Remote';
     const next = lines[i + 1];
     if (!m[1] && next) {
-      const below = asPlace(next);
+      const below = firstOf(next);
       if (below) return below;
       if (/^remote$/i.test(next)) return 'Remote';
     }
