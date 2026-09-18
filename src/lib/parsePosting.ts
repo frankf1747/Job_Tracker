@@ -10,7 +10,9 @@
  * value gets accepted, whereas a blank one gets filled in.
  */
 
-import { DEFAULT_EMPLOYMENT_TYPE, INDUSTRIES, SKILL_POOL } from './schema';
+import { parseLocation } from './places';
+import { DEFAULT_EMPLOYMENT_TYPE, INDUSTRIES } from './schema';
+import { extractSkills } from './skills';
 import type { Application, Status } from './schema';
 import { isoOf } from './derive';
 
@@ -335,32 +337,13 @@ export function parsePostingLocal(raw: string, today: Date): Draft {
   const company = guessCompany(lines, text);
   const position = guessPosition(lines, text);
 
-  let location = '';
-  // A line that is *only* "City, ST" is the strongest signal.
-  for (const l of lines) {
-    const mm = l.match(/^([A-Za-z.\-' ]{2,30},\s*[A-Z]{2})\b/);
-    if (mm) {
-      location = mm[1].trim();
-      break;
-    }
-  }
-  if (!location) {
-    const m = text.match(/\b([A-Z][a-z.\-']+(?:[ \t][A-Z][a-z.\-']+){0,2},[ \t]*[A-Z]{2})\b/);
-    if (m) location = m[1];
-  }
-  if (!location && /\bremote\b/i.test(text)) location = 'Remote';
-  if (!location) {
-    const l = text.match(/location[:\s]+([^\n]{2,30})/i);
-    if (l) location = l[1].trim();
-  }
+  let location = parseLocation(text);
   // Postings often run company and location together: "Stripe San Francisco, CA".
   if (location && company && location.indexOf(company) === 0) {
     location = location.slice(company.length).trim();
   }
 
-  const skills = SKILL_POOL.filter((s) =>
-    new RegExp('(^|[^a-zA-Z])' + escapeRe(s.toLowerCase()) + '([^a-zA-Z]|$)', 'i').test(low),
-  ).slice(0, 7);
+  const skills = extractSkills(text, 7, company);
 
   let salary = '';
   const sm = text.match(SALARY_RE);

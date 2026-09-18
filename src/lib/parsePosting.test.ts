@@ -196,9 +196,13 @@ describe('a real LinkedIn markdown paste', () => {
   });
 
   test('extracts the tools actually asked for', () => {
-    expect(d.skills).toEqual(expect.arrayContaining(['Power BI', 'Forecasting', 'Storytelling']));
-    // Databricks is named as a tool here, but it is not in the tracked skill pool.
-    expect(d.skills).not.toContain('Databricks');
+    expect(d.skills).toEqual(expect.arrayContaining(['Databricks', 'Power BI', 'Forecasting']));
+    // Databricks used to be missing from the pool and is now tracked, and it
+    // leads because a warehouse identifies a role in a way Power BI does not.
+    expect(d.skills[0]).toBe('Databricks');
+    // Storytelling was dropped from the pool: it matched almost every posting
+    // and so distinguished none of them.
+    expect(d.skills).not.toContain('Storytelling');
   });
 });
 
