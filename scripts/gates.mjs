@@ -139,20 +139,33 @@ export function locationFilter(text) {
   return null;
 }
 
-/** Sponsorship, citizenship and clearance are different facts, kept apart. */
+/**
+ * Sponsorship, citizenship and clearance are different facts, kept apart.
+ *
+ * The refusal patterns mirror detectSponsorship in extension/detect.js. They
+ * are separate implementations because one runs in a content script and one in
+ * node, and they had already drifted — a posting that refuses sponsorship in
+ * two sentences was read by one as offering it and by the other as silent.
+ * scripts/sponsorship-fixtures.mjs is the shared list both are tested against,
+ * which is what stops them diverging again.
+ */
+const REFUSES_SPONSORSHIP = [
+  /\b(?:not|unable|cannot|can't|won't|will not|does not|do not|doesn't|no longer)\b[^.!?]{0,140}\bsponsor/i,
+  /\bno\b[^.!?]{0,20}\b(?:visa\s+)?sponsorship/i,
+  /\bwithout\b[^.!?]{0,60}\bsponsor/i,
+  /\bsponsorship\b[^.!?]{0,40}\b(?:is\s+)?not\s+(?:available|offered|provided)/i,
+  /\bnot\s+eligible\b[^.!?]{0,40}\bsponsor/i,
+  /\b(?:candidates?|applicants?|individuals?)\b[^.!?]{0,80}\brequir(?:e|es|ing)\b[^.!?]{0,80}\bsponsor/i,
+  /\bwho\s+(?:will\s+)?requires?\b[^.!?]{0,60}\bsponsor/i,
+];
+
 export function authorizationFilter(text) {
   const t = String(text || '');
   if (/\b(?:security )?clearance\b/i.test(t) && /\b(?:required|must|active)\b/i.test(t)) {
     return 'clearance';
   }
   if (/\b(?:US|U\.S\.|United States) citizen(?:ship)?\b/i.test(t)) return 'citizenship';
-  if (
-    /\bwithout (?:requiring )?sponsorship\b|\bnot (?:able|willing) to sponsor\b|\bno (?:visa )?sponsorship\b|\bsponsorship (?:is )?not (?:available|provided|offered)\b/i.test(
-      t,
-    )
-  ) {
-    return 'sponsorship';
-  }
+  if (REFUSES_SPONSORSHIP.some((re) => re.test(t))) return 'sponsorship';
   return null;
 }
 

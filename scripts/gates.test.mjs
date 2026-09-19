@@ -9,6 +9,7 @@ import {
   unusedSystems,
   yearsFloor,
 } from './gates.mjs';
+import { SPONSORSHIP_FIXTURES } from './sponsorship-fixtures.mjs';
 
 describe('yearsFloor', () => {
   it('takes the governing requirement, not the smallest number in it', () => {
@@ -226,4 +227,13 @@ describe('yearsFloor section handling', () => {
     ].join('\n');
     expect(yearsFloor(posting)).toBe(3);
   });
+});
+
+describe('work authorisation, against the shared fixtures', () => {
+  for (const f of SPONSORSHIP_FIXTURES) {
+    it(`gates ${f.name} as ${JSON.stringify(f.gate)}`, () => {
+      const facts = gateFacts(f.text);
+      expect(gateFor(facts)).toBe(f.gate);
+    });
+  }
 });

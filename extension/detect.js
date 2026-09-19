@@ -23,12 +23,21 @@ function detectSponsorship(text) {
   if (!t) return null;
 
   const refuses = [
-    /\b(?:not|unable|cannot|can't|won't|will not|does not|do not|doesn't)\b[^.!?]{0,60}\bsponsor/,
+    // "unable to consider candidates who require, or will require in the future,
+    // sponsorship" — 68 characters between the negation and the verb. The
+    // window used to be 60, so the refusal was missed by eight characters and
+    // the sentence then matched an *offer* pattern instead.
+    /\b(?:not|unable|cannot|can't|won't|will not|does not|do not|doesn't|no longer)\b[^.!?]{0,140}\bsponsor/,
     /\bno\b[^.!?]{0,20}\b(?:visa\s+)?sponsorship/,
-    /\bwithout\b[^.!?]{0,30}\bsponsorship/,
+    /\bwithout\b[^.!?]{0,60}\bsponsor/,
     /\bsponsorship\b[^.!?]{0,40}\b(?:is\s+)?not\s+(?:available|offered|provided)/,
-    /\bmust\b[^.!?]{0,60}\bwithout\s+(?:the\s+)?(?:need\s+for\s+)?sponsorship/,
-    // Citizenship/status gates amount to the same answer for a visa holder.
+    /\bnot\s+eligible\b[^.!?]{0,40}\bsponsor/,
+    // The candidate requiring sponsorship is being excluded by the sentence,
+    // never offered it.
+    /\b(?:candidates?|applicants?|individuals?)\b[^.!?]{0,80}\brequir(?:e|es|ing)\b[^.!?]{0,80}\bsponsor/,
+    /\bwho\s+(?:will\s+)?requires?\b[^.!?]{0,60}\bsponsor/,
+    // Citizenship and status gates amount to the same answer for a visa holder.
+    /\b(?:must\s+be|require[sd]?)\b[^.!?]{0,30}\b(?:u\.?s\.?|united\s+states)\s+citizen/,
     /\b(?:u\.?s\.?\s+)?citizens?(?:hip)?\b[^.!?]{0,30}\b(?:required|only)/,
     /\b(?:green\s*card|permanent\s+resident)[^.!?]{0,30}\b(?:required|only)/,
     /\bitar\b|\bsecurity\s+clearance\b/,
@@ -36,10 +45,15 @@ function detectSponsorship(text) {
   if (refuses.some((re) => re.test(t))) return 'no';
 
   const offers = [
-    /\b(?:will|can|do|does|happy\s+to|open\s+to)\b[^.!?]{0,30}\bsponsor/,
+    // The employer has to be the one doing the sponsoring. The old patterns
+    // allowed thirty characters of slack after "will", which let "candidates
+    // who **will** require in the future, **sponsor**ship" read as an offer.
+    /\b(?:will|do|does|can)\s+sponsor\b/,
+    /\b(?:willing|happy|open|able|prepared)\s+to\s+sponsor\b/,
+    /\bwe\s+sponsor\b/,
     /\bsponsorship\b[^.!?]{0,30}\b(?:is\s+)?(?:available|offered|provided)/,
-    /\bh-?1-?b\b[^.!?]{0,30}\bsponsor/,
-    /\bvisa\s+sponsorship\s+(?:is\s+)?(?:available|offered)/,
+    /\beligible\s+for\s+(?:visa\s+)?sponsorship\b/,
+    /\bh-?1-?b\s+(?:visa\s+)?sponsorship\b[^.!?]{0,30}\b(?:available|offered|provided)/,
   ];
   if (offers.some((re) => re.test(t))) return 'yes';
 
