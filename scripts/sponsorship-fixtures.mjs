@@ -48,6 +48,16 @@ export const SPONSORSHIP_FIXTURES = [
     gate: 'authorization',
   },
   {
+    name: 'a refusal interrupted by a parenthetical full of abbreviations',
+    // Pfizer. The "etc." inside the bracket ended a window that excluded
+    // full stops, so the refusal never matched.
+    text:
+      'Candidates must be authorized to be employed in the U.S. by any employer. U.S. work visa ' +
+      'sponsorship (such as TN, O-1, H-1B, etc.) is not available for this role now or in the future.',
+    sponsors: 'no',
+    gate: 'authorization',
+  },
+  {
     name: 'citizenship, which answers the same question',
     text: 'Must be a US citizen. This role supports federal contracts.',
     sponsors: 'no',

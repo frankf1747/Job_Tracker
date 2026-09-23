@@ -237,3 +237,73 @@ describe('work authorisation, against the shared fixtures', () => {
     });
   }
 });
+
+describe('yearsFloor does not read a figure out of a longer number', () => {
+  it('ignores a company age', () => {
+    // "more than 100 years of experience" gave a floor of 10, because \d{1,2}
+    // matched the first two digits of 100 — and wrongly gated an analyst role
+    // whose real requirement was one year.
+    expect(
+      yearsFloor('We are a company with more than 100 years of experience in diabetes care.'),
+    ).toBe(null);
+  });
+
+  it('still reads the requirement in the same posting', () => {
+    expect(yearsFloor('1 to 4 years of experience in analytics, business intelligence')).toBe(1);
+  });
+
+  it('ignores a founding year and a headcount', () => {
+    expect(yearsFloor('Founded in 1978, we have 700 years of collective experience.')).toBe(null);
+  });
+});
+
+describe('alternative qualification paths', () => {
+  it('takes the lowest path when a requirement offers a choice', () => {
+    // HCSC: a Master's alone qualifies, so the six-year path is irrelevant.
+    // Reading the highest figure gated a job the MSBA already satisfies.
+    expect(
+      yearsFloor(
+        "Bachelor's degree and 2 years of experience in health care services OR Master's degree " +
+          'in related field OR 6 years of experience in health care services',
+      ),
+    ).toBe(2);
+  });
+
+  it('handles a new-grad programme offering three routes', () => {
+    expect(
+      yearsFloor(
+        "A Bachelor's degree with 0 years of work experience; or an educational program with 1 " +
+          'year of work experience; or High school diploma with 2 years of work experience',
+      ),
+    ).toBe(0);
+  });
+
+  it('still stacks a nested requirement rather than splitting it', () => {
+    // "including" is not a choice — both halves bind.
+    expect(
+      yearsFloor('5+ years of strategy experience, including 2+ years of management consulting'),
+    ).toBe(5);
+  });
+});
+
+describe('degree ladders', () => {
+  it('reads the branch he can take, not the doctorate one', () => {
+    // "4+ years (BS), 2+ years (MS) or 0+ years (PhD)" — the PhD branch is
+    // always the lowest, so counting it reads every ladder as requiring none.
+    expect(
+      yearsFloor(
+        "Master's degree in statistics or equivalent field with 4+ years (BS), 2+ years (MS) or " +
+          '0+ years (PhD) of related experience',
+      ),
+    ).toBe(2);
+  });
+
+  it('keeps a gate when the master’s branch still exceeds what he has', () => {
+    expect(
+      yearsFloor(
+        "Bachelor's degree with 4+ years of hands-on experience OR Master's degree in a related " +
+          'field with 3+ years of relevant professional experience OR PhD with no prior experience',
+      ),
+    ).toBe(3);
+  });
+});

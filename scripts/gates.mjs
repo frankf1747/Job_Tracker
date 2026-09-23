@@ -40,18 +40,22 @@ const ASPIRATIONAL = /\b(?:preferred|bonus|ideally|a plus|nice[- ]to[- ]haves?)\
  *   block into a shortlist entry.
  */
 export function yearsFloor(text) {
-  const floors = [];
   // Scoped per sentence rather than by a character window. A fixed window
   // reaches across sentence boundaries, so "5+ years preferred" in the next
   // line silently disqualified the "1+ years required" in this one.
-  // Not split on ':' — a label governs what follows it ("Bonus: 6+ years").
   const chunks = String(text || '').split(/(?<=[.;!?])\s+|\n+/);
-  const re = /(\d{1,2})\s*(?:\+|-|–|—|\s*to\s*)?\s*(?:\d{1,2})?\s*\+?\s*years?\b/gi;
+  // Each figure has to be a whole number. Without the boundaries, \d{1,2}
+  // matched the "10" inside "100 years of experience" and reported a ten-year
+  // floor for a role asking for one.
+  const re =
+    /(?<!\d)(\d{1,2})(?!\d)\s*(?:\+|-|–|—|\s*to\s*)?\s*(?:(?<!\d)\d{1,2}(?!\d))?\s*\+?\s*years?\b/gi;
 
   // Postings also put the qualifier in a heading above the bullets it governs
   // ("Preferred Qualifications" / "Nice to Haves"), so a heading carries
   // forward until the next one replaces it.
   let aspirationalSection = false;
+  const floors = [];
+  let alternatives = false;
 
   for (const chunk of chunks) {
     const line = chunk.trim();
@@ -63,13 +67,36 @@ export function yearsFloor(text) {
     // this, a company blurb's "for more than 80 years" reads as a bar.
     if (!/\bexperience\b|\byears? (?:in|of|as)\b/i.test(chunk)) continue;
 
+    const here = [];
     for (const m of chunk.matchAll(re)) {
       const years = Number(m[1]);
-      if (!Number.isFinite(years) || years < 1 || years > 15) continue;
-      floors.push(years);
+      if (!Number.isFinite(years) || years < 0 || years > 15) continue;
+      // A ladder offers one branch per degree, and only the branches he can
+      // actually take count. The doctorate branch always carries the lowest
+      // figure — "4+ years (BS), 2+ years (MS) or 0+ years (PhD)" — so
+      // including it reads every ladder as requiring nothing.
+      // Tight: the marker has to be adjacent to this figure. A wider window
+      // reaches the next branch along and excludes "2+ years (MS)" because
+      // "(PhD)" follows a few words later.
+      const around = chunk.slice(Math.max(0, m.index - 16), m.index + m[0].length + 12);
+      if (/\bph\.?d\b|\bdoctorate\b/i.test(around)) continue;
+      here.push(years);
     }
+    if (here.length === 0) continue;
+    const choice = /\bor\b/i.test(chunk);
+    if (choice) alternatives = true;
+    // Within one clause: a choice takes its easiest route, a nested
+    // requirement stacks. Both halves of "5+ years including 2+ in consulting"
+    // bind, so that one keeps its maximum.
+    floors.push(choice ? Math.min(...here) : Math.max(...here));
   }
-  return floors.length ? Math.max(...floors) : null;
+
+  if (floors.length === 0) return null;
+  // Across the whole requirement, "or" means alternative routes and only one
+  // has to be met — "a Bachelor's and 2 years OR a Master's OR 6 years" is
+  // satisfied by the Master's. Reading the highest gated roles already
+  // qualified for.
+  return alternatives ? Math.min(...floors) : Math.max(...floors);
 }
 
 const DEGREE_LADDER =
@@ -129,7 +156,9 @@ export function locationFilter(text) {
   const t = String(text || '');
   const patterns = [
     /must (?:live|reside) in ([A-Z][\w .'-]{2,40})/i,
-    /this role is based in ([A-Z][\w .'-]{2,40})/i,
+    // Not "based in the Real-World & Clinical Data Strategy team" — a team is
+    // not a place, and "the" is how that reads.
+    /this role is based in (?!the\b)([A-Z][\w .'-]{2,40})/i,
     /(?:must be |candidates must be )located in ([A-Z][\w .'-]{2,40})/i,
   ];
   for (const re of patterns) {
@@ -155,6 +184,10 @@ const REFUSES_SPONSORSHIP = [
   /\bwithout\b[^.!?]{0,60}\bsponsor/i,
   /\bsponsorship\b[^.!?]{0,40}\b(?:is\s+)?not\s+(?:available|offered|provided)/i,
   /\bnot\s+eligible\b[^.!?]{0,40}\bsponsor/i,
+  // A refusal can sit after the noun, and the clause between them may carry
+  // abbreviations with full stops ("such as TN, O-1, H-1B, etc."), so this one
+  // does not exclude them.
+  /\b(?:visa\s+)?sponsorship\b[\s\S]{0,70}?\bnot\s+(?:available|offered|provided|possible)/i,
   /\b(?:candidates?|applicants?|individuals?)\b[^.!?]{0,80}\brequir(?:e|es|ing)\b[^.!?]{0,80}\bsponsor/i,
   /\bwho\s+(?:will\s+)?requires?\b[^.!?]{0,60}\bsponsor/i,
 ];

@@ -32,6 +32,10 @@ function detectSponsorship(text) {
     /\bwithout\b[^.!?]{0,60}\bsponsor/,
     /\bsponsorship\b[^.!?]{0,40}\b(?:is\s+)?not\s+(?:available|offered|provided)/,
     /\bnot\s+eligible\b[^.!?]{0,40}\bsponsor/,
+    // A refusal can sit after the noun, and the clause between them may carry
+    // abbreviations with full stops ("such as TN, O-1, H-1B, etc."), so this one
+    // does not exclude them.
+    /\b(?:visa\s+)?sponsorship\b[\s\S]{0,70}?\bnot\s+(?:available|offered|provided|possible)/,
     // The candidate requiring sponsorship is being excluded by the sentence,
     // never offered it.
     /\b(?:candidates?|applicants?|individuals?)\b[^.!?]{0,80}\brequir(?:e|es|ing)\b[^.!?]{0,80}\bsponsor/,
