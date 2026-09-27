@@ -1,8 +1,10 @@
 import { Fragment, useEffect, useState, type CSSProperties } from 'react';
+import type { QueuedJob } from '../data/queue';
 import type { SortDir, SortKey } from '../lib/derive';
 import { loggedAtOf } from '../lib/loggedAt';
 import { MONTHS, STATUSES, STATUS_META } from '../lib/schema';
 import type { Application, Status } from '../lib/schema';
+import { bandLabel, bandOf } from '../lib/triage';
 import {
   SANS,
   detailCol,
@@ -111,6 +113,99 @@ function DeleteControl({ label, onDelete }: { label: string; onDelete: () => voi
   );
 }
 
+/**
+ * Queued jobs that match the search, shown above the table so a posting that
+ * is already captured is not captured again. Kept visually apart from the
+ * table: these are not applications and count toward nothing.
+ */
+function QueuedMatches({ jobs, onOpenQueue }: { jobs: QueuedJob[]; onOpenQueue: () => void }) {
+  if (jobs.length === 0) return null;
+  const when = (ts: number) => {
+    if (!Number.isFinite(ts)) return '';
+    const d = new Date(ts);
+    return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+  };
+  return (
+    <div
+      style={{
+        margin: '0 0 14px',
+        border: '1px dashed #cfc8b9',
+        borderRadius: 9,
+        padding: '10px 14px',
+        background: '#fbfaf6',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span
+          style={{ fontFamily: SANS, fontSize: 10.5, letterSpacing: '.12em', color: '#a07a33' }}
+        >
+          IN YOUR QUEUE · NOT APPLIED YET
+        </span>
+        <span style={{ fontFamily: SANS, fontSize: 10.5, color: '#b9bfc7' }}>{jobs.length}</span>
+        <button
+          onClick={onOpenQueue}
+          style={{
+            marginLeft: 'auto',
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            fontSize: 12,
+            color: '#41678a',
+          }}
+        >
+          Open queue →
+        </button>
+      </div>
+      {jobs.map((j) => (
+        <div
+          key={j.id}
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: 12,
+            padding: '5px 0',
+            borderTop: '1px solid #ece6d9',
+            fontSize: 12.5,
+          }}
+        >
+          <span style={{ fontWeight: 600, flex: 'none', maxWidth: 180, ...cellClip }}>
+            {j.company || '—'}
+          </span>
+          <a
+            href={j.jobUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open job posting"
+            style={{ color: '#41678a', flex: 1, minWidth: 0, ...cellClip }}
+          >
+            {j.position || '—'}
+          </a>
+          <span style={{ color: '#8b939e', flex: 'none', maxWidth: 170, ...cellClip }}>
+            {j.location}
+          </span>
+          <span style={{ fontFamily: SANS, fontSize: 11, color: '#8b939e', flex: 'none' }}>
+            Queued {when(j.capturedAt)}
+          </span>
+          <span
+            style={{
+              fontFamily: SANS,
+              fontSize: 10.5,
+              color: '#8b939e',
+              flex: 'none',
+              width: 130,
+              textAlign: 'right',
+              ...cellClip,
+            }}
+          >
+            {j.scoredAt != null && j.fitScore != null ? `${j.fitScore} · ` : ''}
+            {bandLabel(bandOf(j))}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export type TableProps = {
   rows: Application[];
   /** Matching the current filter. */
@@ -119,6 +214,9 @@ export type TableProps = {
   unfilteredTotal: number;
   search: string;
   onSearch: (v: string) => void;
+  /** Queued jobs matching the search — captured, not applied to yet. */
+  queued: QueuedJob[];
+  onOpenQueue: () => void;
   sortKey: SortKey;
   sortDir: SortDir;
   onSort: (k: SortKey) => void;
@@ -181,11 +279,11 @@ export function ApplicationsTable(p: TableProps) {
         </div>
       </div>
 
+      <QueuedMatches jobs={p.queued} onOpenQueue={p.onOpenQueue} />
+
       <div style={{ borderTop: '1px solid #d8d1c2', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table
-            style={{ width: '100%', fontSize: 12.5, minWidth: 1180, tableLayout: 'fixed' }}
-          >
+          <table style={{ width: '100%', fontSize: 12.5, minWidth: 1180, tableLayout: 'fixed' }}>
             {/* Fixed widths so a long position or resume name clips instead of
                 stretching its column into the next one. Notes takes the rest. */}
             <colgroup>

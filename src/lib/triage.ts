@@ -45,22 +45,58 @@ export function bandOf(job: Triaged): Band {
   return job.decision ?? 'unscored';
 }
 
-/** Band order, then score descending, then the more recent capture. */
-export function sortQueue<T extends Triaged>(jobs: readonly T[]): T[] {
+/**
+ * How to order jobs inside a band. Bands always come first: sorting by date
+ * should not float a blocked job above one worth tailoring.
+ */
+export type QueueOrder = 'score' | 'newest' | 'oldest';
+
+export const QUEUE_ORDERS: readonly { key: QueueOrder; label: string }[] = [
+  { key: 'score', label: 'Score' },
+  { key: 'newest', label: 'Newest' },
+  { key: 'oldest', label: 'Oldest' },
+];
+
+/**
+ * Band order, then the chosen order within it. By score, ties go to the more
+ * recent capture; by date, ties go to the higher score.
+ */
+export function sortQueue<T extends Triaged>(jobs: readonly T[], order: QueueOrder = 'score'): T[] {
   return [...jobs].sort((a, b) => {
     const band = BANDS.indexOf(bandOf(a)) - BANDS.indexOf(bandOf(b));
     if (band !== 0) return band;
     const score = (b.fitScore ?? 0) - (a.fitScore ?? 0);
-    if (score !== 0) return score;
-    return b.capturedAt - a.capturedAt;
+    const age = b.capturedAt - a.capturedAt;
+    if (order === 'newest') return age || score;
+    if (order === 'oldest') return -age || score;
+    return score || age;
   });
 }
 
 /** Every band, empty ones included, so a count can render without a guard. */
-export function groupQueue<T extends Triaged>(jobs: readonly T[]): Record<Band, T[]> {
+export function groupQueue<T extends Triaged>(
+  jobs: readonly T[],
+  order: QueueOrder = 'score',
+): Record<Band, T[]> {
   const out = Object.fromEntries(BANDS.map((b) => [b, [] as T[]])) as Record<Band, T[]>;
-  for (const job of sortQueue(jobs)) out[bandOf(job)].push(job);
+  for (const job of sortQueue(jobs, order)) out[bandOf(job)].push(job);
   return out;
+}
+
+/**
+ * Queued jobs matching the applications search, so a search shows what is
+ * already captured and not yet applied to. Same fields as the table search.
+ * An empty search matches nothing: the table is not the place for the queue.
+ */
+export function searchQueue<T extends { company: string; position: string; location: string }>(
+  jobs: readonly T[],
+  search: string,
+): T[] {
+  const q = search.trim().toLowerCase();
+  if (!q) return [];
+  return jobs.filter((j) =>
+    (j.company + ' ' + j.position + ' ' + j.location).toLowerCase().includes(q),
+  );
 }
 
 const GATE_LABELS: Record<Gate, string> = {

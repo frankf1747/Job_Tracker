@@ -75,6 +75,7 @@ import { supabaseResumeBackend } from './data/resumes';
 import type { NewResume } from './components/ResumeField';
 import { listQueue, deleteQueued, type QueuedJob } from './data/queue';
 import { draftFromQueued } from './lib/queueDraft';
+import { searchQueue } from './lib/triage';
 import { supabase } from './lib/supabase';
 
 const PAGE_SIZE = 12;
@@ -325,10 +326,7 @@ export default function App({ source }: { source: DataSource }) {
     [resumeBackend],
   );
 
-  const openResumeFile = useCallback(
-    (id: string) => resumeBackend.getFile(id),
-    [resumeBackend],
-  );
+  const openResumeFile = useCallback((id: string) => resumeBackend.getFile(id), [resumeBackend]);
 
   /**
    * Hold a resume created in the review modal against the draft, selecting it,
@@ -403,6 +401,19 @@ export default function App({ source }: { source: DataSource }) {
       window.removeEventListener('focus', refresh);
     };
   }, [view, userId, loadQueue]);
+
+  /**
+   * A search also checks the queue, so a job captured but not applied to yet
+   * shows up before it gets captured twice. Refetched each time a search
+   * starts, since the extension adds to the queue from another tab.
+   */
+  const searching = search.trim() !== '';
+  const queueLoadRef = useRef(queueLoad);
+  queueLoadRef.current = queueLoad;
+  useEffect(() => {
+    if (searching) loadQueue(queueLoadRef.current !== 'idle');
+  }, [searching, loadQueue]);
+  const queuedMatches = useMemo(() => searchQueue(queue, search), [queue, search]);
 
   const removeQueued = useCallback(
     async (id: string) => {
@@ -1078,6 +1089,8 @@ export default function App({ source }: { source: DataSource }) {
             unfilteredTotal={rows.length}
             pasteKey={isMac ? '⌘' : 'Ctrl'}
             search={search}
+            queued={queuedMatches}
+            onOpenQueue={openQueue}
             onSearch={(v) => {
               setSearch(v);
               setPage(1);

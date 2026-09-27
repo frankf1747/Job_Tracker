@@ -5,11 +5,13 @@ import {
   BANDS,
   COLLAPSED,
   DIMENSIONS,
+  QUEUE_ORDERS,
   bandLabel,
   gateLabel,
   groupQueue,
   targetLabel,
   type Band,
+  type QueueOrder,
 } from '../lib/triage';
 import { SANS, SERIF } from './styles';
 
@@ -49,6 +51,19 @@ function CheckIcon() {
       <path d="M20 6 9 17l-5-5" />
     </svg>
   );
+}
+
+const ORDER_KEY = 'queue-order';
+
+/** The last order picked. A convenience only, so any storage failure means "score". */
+function savedOrder(): QueueOrder {
+  try {
+    const v = localStorage.getItem(ORDER_KEY);
+    if (QUEUE_ORDERS.some((o) => o.key === v)) return v as QueueOrder;
+  } catch {
+    // Blocked storage, e.g. a private window.
+  }
+  return 'score';
 }
 
 /** Per-dimension colour, so the breakdown reads as three things, not one bar. */
@@ -251,7 +266,16 @@ export function QueueList({
   // Which collapsed bands the user has opened this visit. Not persisted: the
   // point of collapsing them is that they start out of the way each time.
   const [shown, setShown] = useState<Partial<Record<Band, boolean>>>({});
-  const grouped = groupQueue(jobs);
+  const [order, setOrderState] = useState<QueueOrder>(savedOrder);
+  const setOrder = (o: QueueOrder) => {
+    setOrderState(o);
+    try {
+      localStorage.setItem(ORDER_KEY, o);
+    } catch {
+      // Not remembered, which is fine.
+    }
+  };
+  const grouped = groupQueue(jobs, order);
 
   const renderRow = (j: QueuedJob) => {
     const isOpen = !!open[j.id];
@@ -501,13 +525,62 @@ export function QueueList({
         >
           Queue
         </h1>
-        <p style={{ margin: '0 0 26px', fontSize: 13, color: '#8b939e' }}>
-          Captured from a posting. Nothing counts toward your funnel until you add it to the
-          tracker.
-          {load === 'ready' && jobs.length > 0 && (
-            <span style={{ fontFamily: SANS, fontSize: 11.5 }}> · {jobs.length} waiting</span>
-          )}
-        </p>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            flexWrap: 'wrap',
+            gap: 14,
+            margin: '0 0 26px',
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 13, color: '#8b939e', flex: 1, minWidth: 260 }}>
+            Captured from a posting. Nothing counts toward your funnel until you add it to the
+            tracker.
+            {load === 'ready' && jobs.length > 0 && (
+              <span style={{ fontFamily: SANS, fontSize: 11.5 }}> · {jobs.length} waiting</span>
+            )}
+          </p>
+
+          {/* Orders within each band; the bands themselves stay put. */}
+          <div
+            role="group"
+            aria-label="Sort queue"
+            style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: SANS }}
+          >
+            <span style={{ fontSize: 10.5, letterSpacing: '.1em', color: '#9aa3ad' }}>SORT</span>
+            <div
+              style={{
+                display: 'inline-flex',
+                border: '1px solid #ddd6c8',
+                borderRadius: 7,
+                overflow: 'hidden',
+              }}
+            >
+              {QUEUE_ORDERS.map((o, i) => {
+                const active = order === o.key;
+                return (
+                  <button
+                    key={o.key}
+                    onClick={() => setOrder(o.key)}
+                    aria-pressed={active}
+                    style={{
+                      background: active ? '#41678a' : 'transparent',
+                      border: 'none',
+                      borderLeft: i ? '1px solid #ddd6c8' : 'none',
+                      padding: '5px 11px',
+                      fontSize: 11.5,
+                      fontWeight: active ? 600 : 400,
+                      color: active ? '#f4f2ec' : '#5f6a75',
+                    }}
+                  >
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
         {load === 'loading' && (
           <div style={{ padding: '44px 0', textAlign: 'center', color: '#9aa3ad', fontSize: 13 }}>

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { bandOf, gateLabel, groupQueue, sortQueue, targetLabel, type Triaged } from './triage';
+import {
+  bandOf,
+  gateLabel,
+  groupQueue,
+  searchQueue,
+  sortQueue,
+  targetLabel,
+  type Triaged,
+} from './triage';
 
 /** A scored row; overrides say what the case under test is actually about. */
 function job(over: Partial<Triaged> = {}): Triaged {
@@ -69,6 +77,54 @@ describe('sortQueue', () => {
     const before = [...rows];
     sortQueue(rows);
     expect(rows).toEqual(before);
+  });
+});
+
+describe('sortQueue by capture date', () => {
+  const rows = [
+    job({ decision: 'tailor', fitScore: 91, capturedAt: 1 }),
+    job({ decision: 'general', fitScore: 60, capturedAt: 5 }),
+    job({ decision: 'tailor', fitScore: 70, capturedAt: 3 }),
+    job({ decision: 'skip', fitScore: 20, capturedAt: 9 }),
+  ];
+
+  it('orders newest first within each band when asked', () => {
+    expect(sortQueue(rows, 'newest').map((r) => [bandOf(r), r.capturedAt])).toEqual([
+      ['tailor', 3],
+      ['tailor', 1],
+      ['general', 5],
+      ['skip', 9],
+    ]);
+  });
+
+  it('orders oldest first within each band when asked', () => {
+    expect(sortQueue(rows, 'oldest').map((r) => [bandOf(r), r.capturedAt])).toEqual([
+      ['tailor', 1],
+      ['tailor', 3],
+      ['general', 5],
+      ['skip', 9],
+    ]);
+  });
+
+  it('carries the order through to the groups', () => {
+    expect(groupQueue(rows, 'oldest').tailor.map((r) => r.capturedAt)).toEqual([1, 3]);
+  });
+});
+
+describe('searchQueue', () => {
+  const rows = [
+    { id: 'a', company: 'Stripe', position: 'Data Analyst', location: 'Remote' },
+    { id: 'b', company: 'Notion', position: 'Ops Lead', location: 'New York, NY' },
+  ];
+
+  it('matches company, position or location, ignoring case', () => {
+    expect(searchQueue(rows, 'stripe').map((r) => r.id)).toEqual(['a']);
+    expect(searchQueue(rows, 'ops').map((r) => r.id)).toEqual(['b']);
+    expect(searchQueue(rows, 'new york').map((r) => r.id)).toEqual(['b']);
+  });
+
+  it('returns nothing for an empty search, so the table does not list the whole queue', () => {
+    expect(searchQueue(rows, '   ')).toEqual([]);
   });
 });
 
