@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  blankDraft,
   draftFromApplication,
   guessEmploymentType,
   guessIndustry,
@@ -478,5 +479,26 @@ describe('a corporate ATS page', () => {
 
   test('records the tools the posting actually requires', () => {
     expect(d.skills).toContain('Claude Code');
+  });
+});
+
+describe('blankDraft', () => {
+  test('starts a manual entry from the same placeholders an unreadable paste gets', () => {
+    // Save has no required-field guard, so an untouched field has to be visible
+    // in the table as "(edit me)" rather than silently blank.
+    const d = blankDraft(TODAY);
+    expect(d.company).toBe('Company (edit me)');
+    expect(d.position).toBe('Role (edit me)');
+    expect(d.status).toBe('Submitted');
+    expect(d.appliedDate).toBe('2026-07-21');
+  });
+
+  test('infers nothing, since there is nothing to infer from', () => {
+    const d = blankDraft(TODAY);
+    expect(d.location).toBe('');
+    expect(d.skills).toEqual([]);
+    expect(d.salary).toBe('');
+    expect(d.sourceUrl).toBe('');
+    expect(d.resume).toBe('');
   });
 });

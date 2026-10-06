@@ -428,6 +428,31 @@ export async function parsePosting(text: string, today: Date): Promise<Draft> {
  * reads a draft; the id and derived fields (loc, appliedTs) are left to the
  * caller, which already has the row.
  */
+/**
+ * An empty draft, for adding an application by hand rather than from a paste.
+ *
+ * Uses the same placeholders an unreadable paste falls back to. The review
+ * modal has no required-field guard, so a field left untouched has to show up
+ * in the table as "(edit me)" rather than as a silently blank cell.
+ */
+export function blankDraft(today: Date): Draft {
+  return {
+    company: 'Company (edit me)',
+    position: 'Role (edit me)',
+    location: '',
+    skills: [],
+    industry: INDUSTRIES[0],
+    level: guessLevel(''),
+    employmentType: DEFAULT_EMPLOYMENT_TYPE,
+    salary: '',
+    sourceUrl: '',
+    status: 'Submitted',
+    appliedDate: isoOf(today),
+    resume: '',
+    draft: '',
+  };
+}
+
 export function draftFromApplication(app: Application): Draft {
   return {
     company: app.company,

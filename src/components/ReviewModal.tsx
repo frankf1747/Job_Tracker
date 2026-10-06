@@ -26,8 +26,12 @@ export function ReviewModal({
   saving,
 }: {
   review: Draft;
-  /** 'add' after a paste, 'edit' when reopened on an existing row. */
-  mode: 'add' | 'edit';
+  /**
+   * 'add' after a paste, 'edit' when reopened on an existing row, 'manual' for
+   * a blank entered by hand — where nothing was inferred, so nothing is
+   * labelled as a guess and the header cannot claim a clipboard.
+   */
+  mode: 'add' | 'edit' | 'manual';
   /** The user's resume list, managed in the Resumes panel. */
   resumes: Resume[];
   /** Stages a new resume against the draft; it is persisted when the row saves. */
@@ -40,6 +44,7 @@ export function ReviewModal({
   saving: boolean;
 }) {
   const editing = mode === 'edit';
+  const manual = mode === 'manual';
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onDiscard();
@@ -53,7 +58,9 @@ export function ReviewModal({
       onClick={onDiscard}
       role="dialog"
       aria-modal="true"
-      aria-label={editing ? 'Edit application' : 'Review before saving'}
+      aria-label={
+        editing ? 'Edit application' : manual ? 'Add an application' : 'Review before saving'
+      }
       style={{
         position: 'fixed',
         inset: 0,
@@ -94,16 +101,22 @@ export function ReviewModal({
             <div
               style={{ fontFamily: SANS, fontSize: 11, letterSpacing: '.1em', color: '#41678a' }}
             >
-              {editing ? 'EDIT APPLICATION' : '✓ EXTRACTED FROM CLIPBOARD'}
+              {editing
+                ? 'EDIT APPLICATION'
+                : manual
+                  ? 'NEW APPLICATION'
+                  : '✓ EXTRACTED FROM CLIPBOARD'}
             </div>
             <h3
               style={{ margin: '6px 0 0', fontSize: 19, fontWeight: 700, letterSpacing: '-.02em' }}
             >
-              {editing ? 'Edit details' : 'Review before saving'}
+              {editing ? 'Edit details' : manual ? 'Add the details' : 'Review before saving'}
             </h3>
             <p style={{ margin: '3px 0 0', fontSize: 12.5, color: '#8b939e' }}>
               {editing ? (
                 <>Change anything and save.</>
+              ) : manual ? (
+                <>Replace the placeholders with what you know, then save.</>
               ) : (
                 <>
                   Edit anything. <span style={{ color: '#c98a3a' }}>Amber</span> fields are inferred
@@ -222,11 +235,13 @@ export function ReviewModal({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
             <label style={field}>
-              <span style={guessLabel}>Industry · guess</span>
+              <span style={manual ? microLabel : guessLabel}>
+                {manual ? 'Industry' : 'Industry · guess'}
+              </span>
               <select
                 value={review.industry}
                 onChange={(e) => onPatch({ industry: e.target.value })}
-                style={guessInput}
+                style={manual ? input : guessInput}
               >
                 {INDUSTRIES.map((o) => (
                   <option key={o} value={o}>
@@ -236,11 +251,13 @@ export function ReviewModal({
               </select>
             </label>
             <label style={field}>
-              <span style={guessLabel}>Level · guess</span>
+              <span style={manual ? microLabel : guessLabel}>
+                {manual ? 'Level' : 'Level · guess'}
+              </span>
               <select
                 value={review.level}
                 onChange={(e) => onPatch({ level: e.target.value })}
-                style={guessInput}
+                style={manual ? input : guessInput}
               >
                 {LEVELS.map((o) => (
                   <option key={o} value={o}>

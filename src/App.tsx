@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AddPositionDialog } from './components/AddPositionDialog';
 import { ApplicationsTable } from './components/ApplicationsTable';
 import { Donut } from './components/Donut';
 import { FilterStrip, type Chip } from './components/FilterStrip';
@@ -52,6 +53,7 @@ import {
 } from './lib/derive';
 import { cityAgg, normalizeLoc, type CityAggregate } from './lib/locations';
 import {
+  blankDraft,
   draftFromApplication,
   looksLikePosting,
   parsePosting,
@@ -176,6 +178,10 @@ export default function App({ source }: { source: DataSource }) {
   const [pendingResume, setPendingResume] = useState<NewResume | null>(null);
   // The row being edited, or null when the modal is adding a new one.
   const [editingId, setEditingId] = useState<string | null>(null);
+  // The add dialog, and whether the open review began as a hand-entered blank
+  // rather than a parsed posting — which changes what its header can claim.
+  const [adding, setAdding] = useState(false);
+  const [manual, setManual] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -572,30 +578,17 @@ export default function App({ source }: { source: DataSource }) {
   }, [toast]);
 
   // ---------- paste to add ----------
-  useEffect(() => {
-    const onPaste = (e: ClipboardEvent) => {
-      if (review || parsing || view !== 'home') return;
-
-      // Never hijack a paste the user aimed at a field.
-      const t = e.target as HTMLElement | null;
-      if (
-        t &&
-        (t.tagName === 'INPUT' ||
-          t.tagName === 'TEXTAREA' ||
-          t.tagName === 'SELECT' ||
-          t.isContentEditable)
-      ) {
-        return;
-      }
-
-      const text = e.clipboardData?.getData('text') ?? '';
-      if (!text.trim()) return;
-      e.preventDefault();
-
-      if (!looksLikePosting(text)) {
-        showToast("That didn't look like a job posting — try copying the full posting.", 'warn');
-        return;
-      }
+  /**
+   * Parse a posting and open it for review. Shared by paste-anywhere and the
+   * Add button's dialog, so both paths read a posting identically.
+   *
+   * Returns false when the text does not look like a posting, and leaves the
+   * caller to say so in whatever way suits it: a toast for a stray paste, an
+   * inline message in the dialog where the text is still sitting in the box.
+   */
+  const ingest = useCallback(
+    (text: string): boolean => {
+      if (!looksLikePosting(text)) return false;
 
       setParsing(true);
       const started = Date.now();
@@ -614,11 +607,55 @@ export default function App({ source }: { source: DataSource }) {
           setParsing(false);
           showToast("Couldn't read that posting. Try again or add it manually.", 'error');
         });
+      return true;
+    },
+    [showToast],
+  );
+
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (review || parsing || adding || view !== 'home') return;
+
+      // Never hijack a paste the user aimed at a field.
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.tagName === 'SELECT' ||
+          t.isContentEditable)
+      ) {
+        return;
+      }
+
+      const text = e.clipboardData?.getData('text') ?? '';
+      if (!text.trim()) return;
+      e.preventDefault();
+
+      if (!ingest(text)) {
+        showToast("That didn't look like a job posting — try copying the full posting.", 'warn');
+      }
     };
 
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-  }, [review, parsing, view, showToast]);
+  }, [review, parsing, adding, view, showToast, ingest]);
+
+  const readFromDialog = useCallback(
+    (text: string) => {
+      const ok = ingest(text);
+      if (ok) setAdding(false);
+      return ok;
+    },
+    [ingest],
+  );
+
+  const addManually = useCallback(() => {
+    setAdding(false);
+    setEditingId(null);
+    setManual(true);
+    setReview(blankDraft(new Date()));
+  }, []);
 
   /** Reopen the review modal on an existing row, to edit it. */
   const startEdit = useCallback((id: string) => {
@@ -795,6 +832,7 @@ export default function App({ source }: { source: DataSource }) {
   const closeReview = useCallback(() => {
     setReview(null);
     setEditingId(null);
+    setManual(false);
     setPendingResume(null);
     setPromotingId(null);
   }, []);
@@ -1088,6 +1126,7 @@ export default function App({ source }: { source: DataSource }) {
             total={sorted.length}
             unfilteredTotal={rows.length}
             pasteKey={isMac ? '⌘' : 'Ctrl'}
+            onAdd={() => setAdding(true)}
             search={search}
             queued={queuedMatches}
             onOpenQueue={openQueue}
@@ -1241,12 +1280,21 @@ export default function App({ source }: { source: DataSource }) {
         />
       )}
 
+      {adding && (
+        <AddPositionDialog
+          pasteKey={isMac ? '⌘' : 'Ctrl'}
+          onRead={readFromDialog}
+          onManual={addManually}
+          onClose={() => setAdding(false)}
+        />
+      )}
+
       {parsing && <ParsingOverlay />}
 
       {review && (
         <ReviewModal
           review={review}
-          mode={editingId ? 'edit' : 'add'}
+          mode={editingId ? 'edit' : manual ? 'manual' : 'add'}
           resumes={resumes}
           onStageResume={stageResume}
           saving={saving}

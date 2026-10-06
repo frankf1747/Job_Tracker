@@ -235,6 +235,8 @@ export type TableProps = {
   pageInfo: string;
   /** ⌘ or Ctrl, for the empty-state hint. */
   pasteKey: string;
+  /** Open the add dialog — the clickable alternative to paste-anywhere. */
+  onAdd: () => void;
   page: number;
   totalPages: number;
   onPrev: () => void;
@@ -246,7 +248,7 @@ export function ApplicationsTable(p: TableProps) {
 
   return (
     <section style={section}>
-      <div style={sectionHeadingRow}>
+      <div style={{ ...sectionHeadingRow, flexWrap: 'wrap' }}>
         <h2 style={sectionHeading}>Applications</h2>
         <div style={{ marginLeft: 'auto', position: 'relative' }}>
           <span
@@ -268,6 +270,7 @@ export function ApplicationsTable(p: TableProps) {
             aria-label="Search applications"
             style={{
               width: 300,
+              maxWidth: '100%',
               background: 'transparent',
               border: 'none',
               borderBottom: '1px solid #d8d1c2',
@@ -277,6 +280,23 @@ export function ApplicationsTable(p: TableProps) {
             }}
           />
         </div>
+        <button
+          onClick={p.onAdd}
+          title={`Add a position — or paste a posting anywhere with ${p.pasteKey}V`}
+          style={{
+            flex: 'none',
+            alignSelf: 'center',
+            background: '#41678a',
+            border: '1px solid #41678a',
+            borderRadius: 7,
+            padding: '7px 14px',
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: '#f4f2ec',
+          }}
+        >
+          + Add position
+        </button>
       </div>
 
       <QueuedMatches jobs={p.queued} onOpenQueue={p.onOpenQueue} />
