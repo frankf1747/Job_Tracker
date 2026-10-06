@@ -45,6 +45,9 @@ export function ReviewModal({
 }) {
   const editing = mode === 'edit';
   const manual = mode === 'manual';
+  // A row with no company or position renders as an empty line in the table,
+  // so neither may be blank — which matters most for a hand-entered blank.
+  const missing = !review.company.trim() || !review.position.trim();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onDiscard();
@@ -116,7 +119,7 @@ export function ReviewModal({
               {editing ? (
                 <>Change anything and save.</>
               ) : manual ? (
-                <>Replace the placeholders with what you know, then save.</>
+                <>Fill in what you remember. Only position and company are required.</>
               ) : (
                 <>
                   Edit anything. <span style={{ color: '#c98a3a' }}>Amber</span> fields are inferred
@@ -150,6 +153,8 @@ export function ReviewModal({
               <input
                 value={review.position}
                 onChange={(e) => onPatch({ position: e.target.value })}
+                placeholder="e.g. Data Analyst"
+                autoFocus={manual}
                 style={{ ...input, fontWeight: 600 }}
               />
             </label>
@@ -158,6 +163,7 @@ export function ReviewModal({
               <input
                 value={review.company}
                 onChange={(e) => onPatch({ company: e.target.value })}
+                placeholder="e.g. Stripe"
                 style={{ ...input, fontWeight: 600 }}
               />
             </label>
@@ -384,7 +390,8 @@ export function ReviewModal({
           </button>
           <button
             onClick={onSave}
-            disabled={saving}
+            disabled={saving || missing}
+            title={missing ? 'Add a position and a company first' : undefined}
             style={{
               background: '#41678a',
               border: '1px solid #41678a',
@@ -393,7 +400,8 @@ export function ReviewModal({
               fontSize: 13,
               fontWeight: 600,
               color: '#f4f2ec',
-              opacity: saving ? 0.7 : 1,
+              opacity: saving ? 0.7 : missing ? 0.5 : 1,
+              cursor: missing ? 'default' : 'pointer',
             }}
           >
             {saving ? 'Saving…' : editing ? 'Save changes' : 'Add to tracker →'}

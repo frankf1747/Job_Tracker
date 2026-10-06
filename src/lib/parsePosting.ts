@@ -429,16 +429,16 @@ export async function parsePosting(text: string, today: Date): Promise<Draft> {
  * caller, which already has the row.
  */
 /**
- * An empty draft, for adding an application by hand rather than from a paste.
+ * An empty draft, for a position whose posting is no longer to hand.
  *
- * Uses the same placeholders an unreadable paste falls back to. The review
- * modal has no required-field guard, so a field left untouched has to show up
- * in the table as "(edit me)" rather than as a silently blank cell.
+ * Company and position start empty rather than as "(edit me)" placeholders,
+ * so there is nothing to delete before typing. The review form will not save
+ * while either is empty, which is what makes leaving them blank safe.
  */
 export function blankDraft(today: Date): Draft {
   return {
-    company: 'Company (edit me)',
-    position: 'Role (edit me)',
+    company: '',
+    position: '',
     location: '',
     skills: [],
     industry: INDUSTRIES[0],

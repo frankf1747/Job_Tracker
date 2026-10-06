@@ -483,22 +483,22 @@ describe('a corporate ATS page', () => {
 });
 
 describe('blankDraft', () => {
-  test('starts a manual entry from the same placeholders an unreadable paste gets', () => {
-    // Save has no required-field guard, so an untouched field has to be visible
-    // in the table as "(edit me)" rather than silently blank.
+  test('starts every field empty, for a position whose posting is gone', () => {
+    // Nothing to delete before typing. The review form refuses to save while
+    // company or position is empty, which is what makes empty safe here.
     const d = blankDraft(TODAY);
-    expect(d.company).toBe('Company (edit me)');
-    expect(d.position).toBe('Role (edit me)');
-    expect(d.status).toBe('Submitted');
-    expect(d.appliedDate).toBe('2026-07-21');
-  });
-
-  test('infers nothing, since there is nothing to infer from', () => {
-    const d = blankDraft(TODAY);
+    expect(d.company).toBe('');
+    expect(d.position).toBe('');
     expect(d.location).toBe('');
     expect(d.skills).toEqual([]);
     expect(d.salary).toBe('');
     expect(d.sourceUrl).toBe('');
     expect(d.resume).toBe('');
+  });
+
+  test('defaults to a fresh submission dated today', () => {
+    const d = blankDraft(TODAY);
+    expect(d.status).toBe('Submitted');
+    expect(d.appliedDate).toBe('2026-07-21');
   });
 });
