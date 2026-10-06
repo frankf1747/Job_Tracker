@@ -44,12 +44,15 @@ import {
   derive,
   filterRows,
   hasFilter,
+  isoOf,
   parseMMDD,
   sortRows,
   type Filter,
   type SortDir,
   type SortKey,
 } from './lib/derive';
+import { countdown, resolveDeadline } from './lib/countdown';
+import { accountSettingsBackend, localSettingsBackend } from './data/settings';
 import { cityAgg, normalizeLoc, type CityAggregate } from './lib/locations';
 import {
   blankDraft,
@@ -80,10 +83,6 @@ import { searchQueue } from './lib/triage';
 import { supabase } from './lib/supabase';
 
 const PAGE_SIZE = 12;
-
-/** The date the application cycle is counting down to. */
-const DEADLINE_MONTH = 11;
-const DEADLINE_DAY = 11;
 
 /** Day one of the cycle — the countdown strip draws a tick per day from here. */
 const CYCLE_START = new Date(2026, 6, 22);
@@ -214,6 +213,26 @@ export default function App({ source }: { source: DataSource }) {
     companiesRef.current = companies;
   }, [companies]);
 
+  // The countdown's target. Undefined until the saved choice has loaded, so the
+  // panel can show nothing rather than flash the default; null means no choice
+  // was made and the default applies.
+  const [deadlineIso, setDeadlineIso] = useState<string | null | undefined>(undefined);
+  const settings = useMemo(
+    () => (userId ? accountSettingsBackend() : localSettingsBackend()),
+    [userId],
+  );
+  useEffect(() => {
+    let live = true;
+    settings
+      .loadDeadline()
+      .then((iso) => live && setDeadlineIso(iso))
+      // Unreadable is not fatal — fall back to the default rather than hang.
+      .catch(() => live && setDeadlineIso(null));
+    return () => {
+      live = false;
+    };
+  }, [settings]);
+
   // Where resumes are stored: the account when signed in, this browser when not.
   // Callers below go through this and never learn which one they got.
   const resumeBackend: ResumeBackend = useMemo(
@@ -249,6 +268,23 @@ export default function App({ source }: { source: DataSource }) {
   const showToast = useCallback((msg: string, kind: ToastState['kind']) => {
     setToast({ msg, kind });
   }, []);
+
+  /**
+   * Change the countdown target. Shown at once and saved behind it; if the save
+   * fails the old date comes back, so the panel never shows a date that is not
+   * actually stored.
+   */
+  const changeDeadline = useCallback(
+    (iso: string | null) => {
+      const previous = deadlineIso ?? null;
+      setDeadlineIso(iso);
+      settings.saveDeadline(iso).catch(() => {
+        setDeadlineIso(previous);
+        showToast("Couldn't save the countdown date. It's back to what it was.", 'error');
+      });
+    },
+    [deadlineIso, settings, showToast],
+  );
 
   // Optimistic writes need the pre-change row to roll back to. A ref rather
   // than the closed-over `rows`, which is a render behind by the time a
@@ -928,11 +964,10 @@ export default function App({ source }: { source: DataSource }) {
     setPage(1);
   }, []);
 
-  // Countdown to the cycle deadline, rolling to next year once it passes.
+  // Countdown to the date chosen in the Overview panel, or the default when none is.
   const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  let target = new Date(now.getFullYear(), DEADLINE_MONTH, DEADLINE_DAY);
-  if (target < midnight) target = new Date(now.getFullYear() + 1, DEADLINE_MONTH, DEADLINE_DAY);
-  const cdDays = Math.max(0, Math.round((target.getTime() - midnight.getTime()) / DAY));
+  const target = resolveDeadline(now, deadlineIso ?? null);
+  const cd = countdown(now, target);
 
   // One tick per day of the cycle, counting the start day itself. PipStrip caps
   // how many it draws to whatever fits its row.
@@ -1080,10 +1115,12 @@ export default function App({ source }: { source: DataSource }) {
             totalAppsSub={
               filtered ? `${d.total.toLocaleString()} match current filter` : '- keep going'
             }
-            cdWeeks={Math.floor(cdDays / 7)}
-            cdDays={cdDays}
-            cdDaysExtra={cdDays % 7}
+            cdWeeks={cd.weeks}
+            cdDays={cd.days}
+            cdDaysExtra={cd.extra}
             cdTargetLabel={`${MONTHS[target.getMonth()]} ${target.getDate()}, ${target.getFullYear()}`}
+            cdTargetIso={deadlineIso === undefined ? null : isoOf(target)}
+            onChangeDeadline={changeDeadline}
             dayNumber={pipCount}
           />
 
