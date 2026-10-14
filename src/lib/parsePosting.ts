@@ -33,6 +33,10 @@ export type Draft = {
   resume: string;
   /** In-progress text in the "add a skill" input. */
   draft: string;
+  /** The posting's text, kept with the application. */
+  description: string;
+  /** The queue's triage verdict when promoted from it; '' otherwise. */
+  fitReason: string;
 };
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -410,6 +414,10 @@ export function parsePostingLocal(raw: string, today: Date): Draft {
     // shouldn't silently attach whichever resume happens to be first.
     resume: '',
     draft: '',
+    // The text as pasted, minus markdown link syntax: LinkedIn's clipboard
+    // wraps every link in tracking URLs hundreds of characters long.
+    description: text.trim(),
+    fitReason: '',
   };
 }
 
@@ -450,6 +458,8 @@ export function blankDraft(today: Date): Draft {
     appliedDate: isoOf(today),
     resume: '',
     draft: '',
+    description: '',
+    fitReason: '',
   };
 }
 
@@ -468,5 +478,7 @@ export function draftFromApplication(app: Application): Draft {
     appliedDate: app.applied,
     resume: app.resume,
     draft: '',
+    description: app.description,
+    fitReason: app.fitReason,
   };
 }

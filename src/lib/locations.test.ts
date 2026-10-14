@@ -77,6 +77,8 @@ function app(location: string, status: Application['status'] = 'Submitted'): App
     resume: '',
     notes: '',
     sourceUrl: '',
+    description: '',
+    fitReason: '',
   };
 }
 

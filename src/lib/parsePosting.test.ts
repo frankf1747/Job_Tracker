@@ -334,6 +334,8 @@ describe('draftFromApplication', () => {
     resume: 'Analytics v3',
     notes: 'referral',
     sourceUrl: 'https://stripe.com/jobs/1',
+    description: 'Stripe is hiring a Data Analyst.',
+    fitReason: 'Payments data at scale.',
   };
 
   test('round-trips the editable fields', () => {
@@ -350,6 +352,8 @@ describe('draftFromApplication', () => {
       appliedDate: '2026-07-10',
       resume: 'Analytics v3',
       sourceUrl: 'https://stripe.com/jobs/1',
+      description: 'Stripe is hiring a Data Analyst.',
+      fitReason: 'Payments data at scale.',
     });
     expect(d.skills).toEqual(['SQL', 'Python']);
     expect(d.draft).toBe('');
@@ -500,5 +504,36 @@ describe('blankDraft', () => {
     const d = blankDraft(TODAY);
     expect(d.status).toBe('Submitted');
     expect(d.appliedDate).toBe('2026-07-21');
+  });
+});
+
+describe('the description is kept', () => {
+  test('a pasted posting keeps its text', () => {
+    const d = parse(STRIPE_POSTING);
+    expect(d.description).toContain('comfortable with SQL and Python');
+  });
+
+  test('without the tracking URLs LinkedIn wraps every link in', () => {
+    const d = parse(UNILEVER);
+    expect(d.description).toContain('CPFR Analyst');
+    expect(d.description).not.toContain('trackingId');
+    expect(d.description).not.toContain('](http');
+  });
+
+  test('an edit carries the stored description and verdict through untouched', () => {
+    const d = draftFromApplication({
+      ...({} as Application),
+      company: 'Acme',
+      position: 'Analyst',
+      skills: [],
+      description: 'the original posting',
+      fitReason: 'why it was worth it',
+    });
+    expect(d.description).toBe('the original posting');
+    expect(d.fitReason).toBe('why it was worth it');
+  });
+
+  test('a hand-entered blank starts with none', () => {
+    expect(blankDraft(TODAY).description).toBe('');
   });
 });

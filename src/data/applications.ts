@@ -32,12 +32,14 @@ type Row = {
   notes: string;
   source_url: string;
   skills: string[];
+  description: string;
+  fit_reason: string;
   created_at: string;
 };
 
 /** Columns selected everywhere, so list and write paths cannot drift apart. */
 const COLUMNS =
-  'id,company,position,industry,level,employment_type,salary,status,reached,location_raw,lat,lng,applied_on,resume,notes,source_url,skills,created_at';
+  'id,company,position,industry,level,employment_type,salary,status,reached,location_raw,lat,lng,applied_on,resume,notes,source_url,skills,description,fit_reason,created_at';
 
 export function toApplication(row: Row): Application {
   const loc = normalizeLoc(row.location_raw);
@@ -66,6 +68,8 @@ export function toApplication(row: Row): Application {
     resume: row.resume,
     notes: row.notes,
     sourceUrl: row.source_url,
+    description: row.description ?? '',
+    fitReason: row.fit_reason ?? '',
   };
 }
 
@@ -86,6 +90,8 @@ function toRow(app: Partial<Application>): Record<string, unknown> {
   if (app.notes !== undefined) row.notes = app.notes;
   if (app.sourceUrl !== undefined) row.source_url = app.sourceUrl;
   if (app.skills !== undefined) row.skills = app.skills;
+  if (app.description !== undefined) row.description = app.description;
+  if (app.fitReason !== undefined) row.fit_reason = app.fitReason;
   return row;
 }
 

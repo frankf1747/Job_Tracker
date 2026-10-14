@@ -5,6 +5,7 @@ import { loggedAtOf } from '../lib/loggedAt';
 import { MONTHS, STATUSES, STATUS_META } from '../lib/schema';
 import type { Application, Status } from '../lib/schema';
 import { bandLabel, bandOf } from '../lib/triage';
+import { CheckIcon, CopyIcon } from './icons';
 import {
   SANS,
   detailCol,
@@ -16,6 +17,126 @@ import {
   sortableTh,
   th,
 } from './styles';
+
+/**
+ * The posting as it was when you applied, and the queue's verdict on it.
+ *
+ * Collapsed behind its length, since a description runs to thousands of
+ * characters and the row above is what you scan. Most useful after applying —
+ * preparing for an interview, by which point the posting is often gone.
+ */
+function PostingText({ description, fitReason }: { description: string; fitReason: string }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState<boolean | null>(null);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(description);
+      setCopied(true);
+    } catch {
+      // Denied permission, or an insecure context.
+      setCopied(false);
+    }
+    setTimeout(() => setCopied(null), 1800);
+  };
+
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        // The row spans the table, which is wider than most windows and scrolls
+        // sideways; uncapped, the text ran off-screen and took the copy button
+        // with it. Capped, it also stays at a readable line length.
+        maxWidth: 860,
+        padding: '12px 16px',
+        background: '#f7f5f0',
+        border: '1px solid #e2dccd',
+        borderRadius: 8,
+      }}
+    >
+      {fitReason && (
+        <div style={{ marginBottom: description ? 10 : 0 }}>
+          <span style={detailLabel}>WHY IT WAS WORTH APPLYING</span>
+          <div
+            style={{
+              marginTop: 5,
+              fontSize: 12.5,
+              lineHeight: 1.55,
+              color: '#5f6a75',
+              borderLeft: '2px solid #e2dccd',
+              paddingLeft: 9,
+            }}
+          >
+            {fitReason}
+          </div>
+        </div>
+      )}
+      {description && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={() => setOpen((o) => !o)}
+              aria-expanded={open}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                fontFamily: SANS,
+                fontSize: 11,
+                letterSpacing: '.08em',
+                color: '#6b7078',
+              }}
+            >
+              <span style={{ fontSize: 10 }}>{open ? '▾' : '▸'}</span>
+              JOB DESCRIPTION ({description.length.toLocaleString()} chars)
+            </button>
+            <button
+              onClick={() => void copy()}
+              aria-label={copied ? 'Description copied' : 'Copy description'}
+              title={copied === false ? 'Copy failed' : 'Copy the description'}
+              style={{
+                marginLeft: 'auto',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 26,
+                height: 26,
+                background: 'transparent',
+                border: '1px solid #ddd6c8',
+                borderRadius: 6,
+                padding: 0,
+                color: copied === null ? '#8b939e' : copied ? '#3f7d55' : '#a35242',
+              }}
+            >
+              {copied ? <CheckIcon /> : <CopyIcon />}
+            </button>
+          </div>
+          {open && (
+            <div
+              style={{
+                marginTop: 10,
+                paddingTop: 12,
+                borderTop: '1px dashed #e2dccd',
+                maxHeight: 380,
+                overflow: 'auto',
+                fontSize: 12.5,
+                lineHeight: 1.65,
+                color: '#37414c',
+                // The capture keeps the posting's own line breaks.
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {description}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 const SORTABLE: [SortKey, string][] = [
   ['company', 'COMPANY'],
@@ -673,6 +794,9 @@ export function ApplicationsTable(p: TableProps) {
                               />
                             </div>
                           </div>
+                          {(r.description || r.fitReason) && (
+                            <PostingText description={r.description} fitReason={r.fitReason} />
+                          )}
                         </td>
                       </tr>
                     )}

@@ -31,5 +31,8 @@ export function draftFromQueued(job: QueuedJob, today: Date): Draft {
     appliedDate: isoOf(today),
     resume: '',
     draft: '',
+    // The captured text, not the title-and-company fallback above.
+    description: job.description?.trim() ?? '',
+    fitReason: job.reason,
   };
 }

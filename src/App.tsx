@@ -880,6 +880,8 @@ export default function App({ source }: { source: DataSource }) {
       applied: review.appliedDate,
       resume: review.resume,
       sourceUrl: review.sourceUrl,
+      description: review.description,
+      fitReason: review.fitReason,
     };
     const derived = {
       loc: normalizeLoc(fields.location),

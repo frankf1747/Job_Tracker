@@ -346,6 +346,8 @@ export function makeSeedRows(n: number, now: Date): Application[] {
       resume: FAM_RESUME[pos.f],
       notes: pick(NOTES_POOL),
       sourceUrl: r() < 0.7 ? 'https://careers.' + slug + '.com/' + id : '',
+      description: '',
+      fitReason: '',
     });
   }
 

@@ -31,6 +31,8 @@ function app(over: Partial<Application> = {}): Application {
     resume: '',
     notes: '',
     sourceUrl: '',
+    description: '',
+    fitReason: '',
     ...over,
     location,
     loc: normalizeLoc(location),

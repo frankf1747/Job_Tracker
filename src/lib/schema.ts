@@ -160,6 +160,10 @@ export type Application = {
   resume: string;
   notes: string;
   sourceUrl: string;
+  /** The posting's text as captured or pasted; '' when entered by hand. */
+  description: string;
+  /** The queue's triage verdict, carried across on promotion; '' otherwise. */
+  fitReason: string;
 };
 
 /**

@@ -319,6 +319,29 @@ export function ReviewModal({
             />
           </label>
 
+          <label style={field}>
+            <span style={microLabel}>
+              Job description
+              {review.description
+                ? ` · ${review.description.length.toLocaleString()} chars`
+                : ' · optional'}
+            </span>
+            <textarea
+              value={review.description}
+              onChange={(e) => onPatch({ description: e.target.value })}
+              placeholder="Paste it here if you have it — it stays with the application."
+              rows={review.description ? 5 : 2}
+              style={{
+                ...input,
+                fontSize: 12,
+                lineHeight: 1.55,
+                resize: 'vertical',
+                fontFamily: 'inherit',
+                color: '#5f6a75',
+              }}
+            />
+          </label>
+
           <div
             style={{
               display: 'grid',
