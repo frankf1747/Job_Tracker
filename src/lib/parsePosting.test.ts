@@ -336,6 +336,7 @@ describe('draftFromApplication', () => {
     sourceUrl: 'https://stripe.com/jobs/1',
     description: 'Stripe is hiring a Data Analyst.',
     fitReason: 'Payments data at scale.',
+    rounds: [],
   };
 
   test('round-trips the editable fields', () => {

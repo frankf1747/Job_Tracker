@@ -33,6 +33,7 @@ function app(over: Partial<Application> = {}): Application {
     sourceUrl: '',
     description: '',
     fitReason: '',
+    rounds: [],
     ...over,
     location,
     loc: normalizeLoc(location),

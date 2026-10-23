@@ -3,9 +3,10 @@ import type { QueuedJob } from '../data/queue';
 import type { SortDir, SortKey } from '../lib/derive';
 import { loggedAtOf } from '../lib/loggedAt';
 import { MONTHS, STATUSES, STATUS_META } from '../lib/schema';
-import type { Application, Status } from '../lib/schema';
+import type { Application, Round, Status } from '../lib/schema';
 import { bandLabel, bandOf } from '../lib/triage';
 import { CheckIcon, CopyIcon } from './icons';
+import { RoundsEditor } from './RoundsEditor';
 import {
   SANS,
   detailCol,
@@ -358,6 +359,7 @@ export type TableProps = {
   pasteKey: string;
   /** Open the add dialog — the clickable alternative to paste-anywhere. */
   onAdd: () => void;
+  onRoundsChange: (id: string, rounds: Round[]) => void;
   page: number;
   totalPages: number;
   onPrev: () => void;
@@ -793,6 +795,20 @@ export function ApplicationsTable(p: TableProps) {
                                 onDelete={() => p.onDelete(r.id)}
                               />
                             </div>
+                          </div>
+                          <div
+                            style={{
+                              marginTop: 10,
+                              padding: '12px 16px',
+                              background: '#f7f5f0',
+                              border: '1px solid #e2dccd',
+                              borderRadius: 8,
+                            }}
+                          >
+                            <RoundsEditor
+                              rounds={r.rounds}
+                              onChange={(rounds) => p.onRoundsChange(r.id, rounds)}
+                            />
                           </div>
                           {(r.description || r.fitReason) && (
                             <PostingText description={r.description} fitReason={r.fitReason} />

@@ -79,6 +79,7 @@ function app(location: string, status: Application['status'] = 'Submitted'): App
     sourceUrl: '',
     description: '',
     fitReason: '',
+    rounds: [],
   };
 }
 

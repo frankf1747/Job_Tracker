@@ -8,6 +8,7 @@
 
 import { requireSupabase } from '../lib/supabase';
 import { normalizeLoc } from '../lib/locations';
+import { sanitizeRounds } from '../lib/rounds';
 import type { Application, Status } from '../lib/schema';
 
 const TABLE = 'applications';
@@ -34,12 +35,13 @@ type Row = {
   skills: string[];
   description: string;
   fit_reason: string;
+  rounds: unknown;
   created_at: string;
 };
 
 /** Columns selected everywhere, so list and write paths cannot drift apart. */
 const COLUMNS =
-  'id,company,position,industry,level,employment_type,salary,status,reached,location_raw,lat,lng,applied_on,resume,notes,source_url,skills,description,fit_reason,created_at';
+  'id,company,position,industry,level,employment_type,salary,status,reached,location_raw,lat,lng,applied_on,resume,notes,source_url,skills,description,fit_reason,rounds,created_at';
 
 export function toApplication(row: Row): Application {
   const loc = normalizeLoc(row.location_raw);
@@ -70,6 +72,7 @@ export function toApplication(row: Row): Application {
     sourceUrl: row.source_url,
     description: row.description ?? '',
     fitReason: row.fit_reason ?? '',
+    rounds: sanitizeRounds(row.rounds),
   };
 }
 
@@ -92,6 +95,7 @@ function toRow(app: Partial<Application>): Record<string, unknown> {
   if (app.skills !== undefined) row.skills = app.skills;
   if (app.description !== undefined) row.description = app.description;
   if (app.fitReason !== undefined) row.fit_reason = app.fitReason;
+  if (app.rounds !== undefined) row.rounds = app.rounds;
   return row;
 }
 

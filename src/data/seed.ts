@@ -7,7 +7,7 @@
 
 import { normalizeLoc } from '../lib/locations';
 import type { Application, Status } from '../lib/schema';
-import { DAY, reachedFor } from '../lib/schema';
+import { DAY, reachedFor, type Round } from '../lib/schema';
 import { isoOf } from '../lib/derive';
 
 type Company = { n: string; ind: string; c: string | null };
@@ -348,9 +348,42 @@ export function makeSeedRows(n: number, now: Date): Application[] {
       sourceUrl: r() < 0.7 ? 'https://careers.' + slug + '.com/' + id : '',
       description: '',
       fitReason: '',
+      rounds: sampleRounds(status, reached, Number(id)),
     });
   }
 
   rows.sort((a, b) => b.appliedTs - a.appliedTs);
   return rows;
+}
+
+/**
+ * Plausible interview rounds for a sample row, so the flow map has something
+ * to show in sample mode.
+ *
+ * Drawn from its own generator keyed on the row id rather than the shared one
+ * above: taking extra draws from that would shift every later row and change
+ * every other sample figure on the page.
+ */
+function sampleRounds(status: string, reached: number, seed: number): Round[] {
+  if (reached < 2 && status !== 'Interview' && status !== 'Offer') return [];
+  let x = (seed * 2654435761) % 4294967296;
+  const r = () => {
+    x = (x * 1664525 + 1013904223) % 4294967296;
+    return x / 4294967296;
+  };
+  const rounds: Round[] = [{ type: r() < 0.75 ? 'HR / Recruiter' : 'Hiring Manager' }];
+  const depth = status === 'Offer' ? 3 + Math.floor(r() * 2) : 1 + Math.floor(r() * 3);
+  const middle: Round['type'][] = [
+    'Hiring Manager',
+    'Technical',
+    'Case / Presentation',
+    'Behavioral',
+  ];
+  while (rounds.length < depth - 1) {
+    const prev = rounds[rounds.length - 1].type;
+    const options = middle.filter((t) => t !== prev);
+    rounds.push({ type: options[Math.floor(r() * options.length)] });
+  }
+  if (rounds.length < depth) rounds.push({ type: 'Panel / Final' });
+  return rounds;
 }

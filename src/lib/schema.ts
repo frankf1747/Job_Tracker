@@ -9,6 +9,31 @@ export const STATUSES = ['Submitted', 'OA', 'Interview', 'Offer', 'Rejected', 'G
 
 export type Status = (typeof STATUSES)[number];
 
+/**
+ * The kinds of interview round, in the order they usually happen. The flow map
+ * stacks nodes in this order, so it reads top to bottom roughly as a process
+ * does. Anything unlisted is Other, with its own label.
+ */
+export const ROUND_TYPES = [
+  'HR / Recruiter',
+  'Hiring Manager',
+  'Technical',
+  'Case / Presentation',
+  'Behavioral',
+  'Panel / Final',
+  'Other',
+] as const;
+export type RoundType = (typeof ROUND_TYPES)[number];
+
+/** One interview round. Its position in the list is its round number. */
+export type Round = {
+  type: RoundType;
+  /** Free text for Other, e.g. "Take-home". */
+  label?: string;
+  /** ISO date, YYYY-MM-DD, when known. */
+  date?: string;
+};
+
 /** Chip colours for each status in the applications table. */
 export const STATUS_META: Record<Status, { bg: string; fg: string; border: string }> = {
   Submitted: { bg: 'transparent', fg: '#3f7d55', border: 'transparent' },
@@ -164,6 +189,8 @@ export type Application = {
   description: string;
   /** The queue's triage verdict, carried across on promotion; '' otherwise. */
   fitReason: string;
+  /** Interview rounds in the order they happened. */
+  rounds: Round[];
 };
 
 /**

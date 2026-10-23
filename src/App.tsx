@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApplicationsTable } from './components/ApplicationsTable';
+import { InterviewMap } from './components/InterviewMap';
 import { Donut } from './components/Donut';
 import { FilterStrip, type Chip } from './components/FilterStrip';
 import { Grain, Hero, VerticalMotto } from './components/Hero';
@@ -904,9 +905,16 @@ export default function App({ source }: { source: DataSource }) {
         showToast(`Updated — ${review.company} · ${review.position}`, 'success');
       } else {
         const saved = userId
-          ? await createApplication({ ...fields, notes: '' }, userId)
+          ? await createApplication({ ...fields, notes: '', rounds: [] }, userId)
           : // Sample mode has no database to stamp the row, so it stands in.
-            { ...fields, notes: '', id: crypto.randomUUID(), createdAt: Date.now(), ...derived };
+            {
+              ...fields,
+              notes: '',
+              rounds: [],
+              id: crypto.randomUUID(),
+              createdAt: Date.now(),
+              ...derived,
+            };
         // Promoted from the queue: now that it is a real application, the
         // capture has served its purpose and leaves the queue.
         if (promotingId) {
@@ -1137,12 +1145,15 @@ export default function App({ source }: { source: DataSource }) {
             onToggleStatus={(s) => toggleFilter('statuses', s)}
           />
 
+          <InterviewMap rows={visible} />
+
           <ApplicationsTable
             rows={pageRows}
             total={sorted.length}
             unfilteredTotal={rows.length}
             pasteKey={isMac ? '⌘' : 'Ctrl'}
             onAdd={addManually}
+            onRoundsChange={(id, rounds) => updateRow(id, { rounds })}
             search={search}
             queued={queuedMatches}
             onOpenQueue={openQueue}
