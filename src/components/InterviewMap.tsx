@@ -1,16 +1,13 @@
-import { useMemo, useRef, useState } from 'react';
-import { useElementWidth } from '../hooks/useElementWidth';
-import { NODE_WIDTH, OUTCOMES, roundFlow, type Outcome } from '../lib/rounds';
-import type { Round, Status } from '../lib/schema';
-import { SANS, section, sectionHeading, sectionHeadingRow } from './styles';
+import { useMemo, useState } from 'react';
+import { roundSummary, type Outcome } from '../lib/rounds';
+import type { Round, RoundType, Status } from '../lib/schema';
+import { SANS } from './styles';
 
 /**
  * Validated against the page surface (#f7f5f0) for colour-blind separation.
  * Rejected is orange rather than the app's red: the muted red and green read
- * as the same colour to a deuteranope (ΔE 3.4), and telling an offer path from
- * a rejection path is the whole point of the map. Ghosted is a deliberate
- * neutral — nothing happened — and every node is labelled, so no ending is
- * identified by colour alone.
+ * as the same colour to a deuteranope (ΔE 3.4). Every segment is also labelled,
+ * so no ending is identified by colour alone.
  */
 const OUTCOME_COLOUR: Record<Outcome, string> = {
   'In progress': '#4a6fae',
@@ -19,214 +16,162 @@ const OUTCOME_COLOUR: Record<Outcome, string> = {
   Ghosted: '#a3abb5',
 };
 
-const HEIGHT = 260;
-/** Room to the right of the last column for its labels. */
-const LABEL_ROOM = 130;
-const HEADER = 22;
-
-type Hover = { x: number; y: number; text: string } | null;
+/** White only where it clears contrast; the orange and grey take dark text. */
+const OUTCOME_INK: Record<Outcome, string> = {
+  'In progress': '#fff',
+  Offer: '#fff',
+  Rejected: '#1f2a35',
+  Ghosted: '#1f2a35',
+};
 
 /**
- * Every application with recorded rounds, followed from its first round to how
- * it ended. Band width is the number of applications; band colour is how they
- * ended, so the paths that lead to offers stand out from the ones that don't.
+ * Round types as tints of one blue, in a fixed order so a type keeps its tint
+ * in every row. Identity comes from the label in each segment, not the tint,
+ * which is why seven types don't need seven hues.
+ */
+const ROUND_TINT: Record<RoundType, { bg: string; ink: string }> = {
+  'HR / Recruiter': { bg: '#41678a', ink: '#f4f2ec' },
+  'Hiring Manager': { bg: '#5d82a6', ink: '#f4f2ec' },
+  Technical: { bg: '#86a3bf', ink: '#1f2a35' },
+  'Case / Presentation': { bg: '#a9bfd3', ink: '#1f2a35' },
+  Behavioral: { bg: '#c7d5e3', ink: '#1f2a35' },
+  'Panel / Final': { bg: '#2c4a66', ink: '#f4f2ec' },
+  Other: { bg: '#ddd6c8', ink: '#1f2a35' },
+};
+
+/** What fits inside a narrow segment. The full name is in its tooltip. */
+const SHORT: Record<string, string> = {
+  'HR / Recruiter': 'HR',
+  'Hiring Manager': 'HM',
+  Technical: 'Tech',
+  'Case / Presentation': 'Case',
+  Behavioral: 'Behav.',
+  'Panel / Final': 'Panel',
+  Other: 'Other',
+  'In progress': 'Open',
+  Offer: 'Offer',
+  Rejected: 'Rejected',
+  Ghosted: 'Ghosted',
+};
+
+/**
+ * Interview rounds at a glance, folded into one line until asked for.
+ *
+ * Opened, it is one bar per round: which types happened there, and how many
+ * applications got that far. Every bar is drawn against the same total, so a
+ * round 3 bar shorter than round 1 is the drop-off, read without a legend.
  */
 export function InterviewMap({ rows }: { rows: { status: Status; rounds: Round[] }[] }) {
-  const [ref, width] = useElementWidth(320, 900);
-  const [hover, setHover] = useState<Hover>(null);
-  const [active, setActive] = useState<string | null>(null);
-
-  const plot = Math.max(200, width - LABEL_ROOM);
-  const flow = useMemo(() => roundFlow(rows, plot, HEIGHT - HEADER), [rows, plot]);
-  const byId = useMemo(() => new Map(flow.nodes.map((n) => [n.id, n])), [flow]);
-  const roundCols = Math.max(0, flow.cols - 1);
-
-  // Tooltip position relative to the chart's own box, so it follows the cursor
-  // wherever the section has scrolled to.
-  const box = useRef<HTMLDivElement>(null);
-  const at = (e: React.MouseEvent, text: string) => {
-    const b = box.current?.getBoundingClientRect();
-    if (!b) return;
-    setHover({ x: e.clientX - b.left, y: e.clientY - b.top, text });
-  };
+  const [open, setOpen] = useState(false);
+  const sum = useMemo(() => roundSummary(rows), [rows]);
 
   return (
-    <section style={section}>
-      <div style={sectionHeadingRow}>
-        <h2 style={sectionHeading}>Interview Rounds</h2>
-        {flow.total > 0 && (
-          <span style={{ fontFamily: SANS, fontSize: 11.5, color: '#8b939e' }}>
-            {flow.total} {flow.total === 1 ? 'application' : 'applications'} with rounds recorded
-          </span>
-        )}
-      </div>
+    <div style={{ marginTop: 26 }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          borderTop: '1px solid #d8d1c2',
+          padding: '12px 0 4px',
+          fontFamily: SANS,
+          fontSize: 11,
+          letterSpacing: '.12em',
+          color: '#6b7078',
+          textAlign: 'left',
+        }}
+      >
+        <span style={{ fontSize: 9 }}>{open ? '▾' : '▸'}</span>
+        INTERVIEW ROUNDS
+        <span style={{ color: '#b9bfc7', letterSpacing: 0 }}>
+          · {sum.total ? `${sum.total} recorded` : 'none recorded yet'}
+        </span>
+      </button>
 
-      <div ref={ref} style={{ borderTop: '1px solid #d8d1c2', paddingTop: 16 }}>
-        {flow.total === 0 ? (
-          <p style={{ margin: '18px 0', fontSize: 13, color: '#8b939e', lineHeight: 1.7 }}>
-            No interview rounds recorded yet. Open an application&rsquo;s details with ▸ and add its
-            rounds in order — HR, hiring manager, panel — and this maps how your interviews run and
-            where they end.
+      {open &&
+        (sum.total === 0 ? (
+          <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#8b939e', lineHeight: 1.6 }}>
+            Open an application&rsquo;s details with ▸ and add its rounds in order — HR, hiring
+            manager, panel. They&rsquo;re summarised here.
           </p>
         ) : (
-          <>
-            <div
-              style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 12 }}
-              aria-label="Legend: band colour is how the applications ended"
-            >
-              {OUTCOMES.map((o) => (
+          <div
+            role="table"
+            aria-label={`Interview rounds across ${sum.total} applications`}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '64px 1fr',
+              gap: '7px 12px',
+              marginTop: 10,
+            }}
+          >
+            {sum.rows.map((row) => (
+              <div key={row.label} role="row" style={{ display: 'contents' }}>
                 <span
-                  key={o}
+                  role="rowheader"
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
                     fontFamily: SANS,
                     fontSize: 11,
-                    color: '#5f6a75',
+                    color: row.kind === 'outcome' ? '#37414c' : '#8b939e',
+                    fontWeight: row.kind === 'outcome' ? 600 : 400,
+                    alignSelf: 'center',
                   }}
                 >
-                  <span
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 2,
-                      background: OUTCOME_COLOUR[o],
-                    }}
-                  />
-                  {o}
+                  {row.label}
                 </span>
-              ))}
-            </div>
-
-            <div ref={box} style={{ position: 'relative' }}>
-              <svg
-                width={plot + LABEL_ROOM}
-                height={HEIGHT}
-                role="img"
-                aria-label={`Interview rounds for ${flow.total} applications, from first round to outcome`}
-                onMouseLeave={() => {
-                  setHover(null);
-                  setActive(null);
-                }}
-                style={{ display: 'block', overflow: 'visible' }}
-              >
-                {Array.from({ length: roundCols }, (_, c) => (
-                  <text
-                    key={c}
-                    x={c * ((plot - NODE_WIDTH) / Math.max(1, flow.cols - 1))}
-                    y={10}
-                    style={{
-                      fontFamily: SANS,
-                      fontSize: 10,
-                      letterSpacing: '.1em',
-                      fill: '#9aa3ad',
-                    }}
-                  >
-                    ROUND {c + 1}
-                  </text>
-                ))}
-
-                <g transform={`translate(0,${HEADER})`}>
-                  {flow.links.map((l, i) => {
-                    const src = byId.get(l.source)!;
-                    const dst = byId.get(l.target)!;
-                    const lit = active === null || active === l.source || active === l.target;
-                    return (
-                      <path
-                        key={i}
-                        d={l.path}
-                        fill={OUTCOME_COLOUR[l.outcome]}
-                        fillOpacity={lit ? 0.42 : 0.1}
-                        stroke="#f7f5f0"
-                        strokeWidth={1}
-                        onMouseMove={(e) =>
-                          at(
-                            e,
-                            `${src.name} → ${dst.name} · ${l.value} ${l.value === 1 ? 'application' : 'applications'}${dst.kind === 'outcome' ? '' : `, ended ${l.outcome.toLowerCase()}`}`,
-                          )
-                        }
-                        style={{ transition: 'fill-opacity .15s' }}
-                      />
-                    );
-                  })}
-
-                  {flow.nodes.map((n) => {
-                    const fill =
-                      n.kind === 'outcome' ? OUTCOME_COLOUR[n.name as Outcome] : '#2c3640';
-                    return (
-                      <g
-                        key={n.id}
-                        onMouseEnter={() => setActive(n.id)}
-                        onMouseMove={(e) =>
-                          at(
-                            e,
-                            n.kind === 'round'
-                              ? `Round ${n.col + 1} · ${n.name} · ${n.value}`
-                              : `${n.name} after ${n.col} ${n.col === 1 ? 'round' : 'rounds'} · ${n.value}`,
-                          )
-                        }
-                      >
-                        {/* A wider invisible target than the 12px bar. */}
-                        <rect
-                          x={n.x - 4}
-                          y={n.y}
-                          width={NODE_WIDTH + 8}
-                          height={Math.max(n.h, 8)}
-                          fill="transparent"
-                        />
-                        <rect
-                          x={n.x}
-                          y={n.y}
-                          width={NODE_WIDTH}
-                          height={Math.max(n.h, 2)}
-                          rx={2}
-                          fill={fill}
-                        />
-                        <text
-                          x={n.x + NODE_WIDTH + 6}
-                          y={n.y + Math.max(n.h, 2) / 2}
-                          dominantBaseline="middle"
-                          paintOrder="stroke"
-                          stroke="#f7f5f0"
-                          strokeWidth={3}
-                          style={{ fontFamily: SANS, fontSize: 11, fill: '#37414c' }}
-                        >
-                          {n.name}
-                          <tspan style={{ fill: '#8b939e' }}> {n.value}</tspan>
-                        </text>
-                      </g>
-                    );
-                  })}
-                </g>
-              </svg>
-
-              {hover && (
                 <div
-                  role="tooltip"
+                  role="cell"
                   style={{
-                    position: 'absolute',
-                    left: Math.min(hover.x + 12, plot + LABEL_ROOM - 220),
-                    top: hover.y + 12,
-                    maxWidth: 240,
-                    pointerEvents: 'none',
-                    background: '#2c3640',
-                    color: '#f7f5f0',
-                    fontFamily: SANS,
-                    fontSize: 11.5,
-                    lineHeight: 1.45,
-                    padding: '6px 9px',
-                    borderRadius: 6,
-                    boxShadow: '0 6px 18px rgba(0,0,0,.18)',
+                    display: 'flex',
+                    gap: 2,
+                    width: `${(row.reached / sum.total) * 100}%`,
+                    minWidth: 40,
+                    height: 22,
                   }}
                 >
-                  {hover.text}
+                  {row.segments.map((s) => {
+                    const c =
+                      row.kind === 'outcome'
+                        ? {
+                            bg: OUTCOME_COLOUR[s.name as Outcome],
+                            ink: OUTCOME_INK[s.name as Outcome],
+                          }
+                        : ROUND_TINT[s.name as RoundType];
+                    return (
+                      <div
+                        key={s.name}
+                        title={`${row.label} · ${s.name} · ${s.count}`}
+                        style={{
+                          flex: s.count,
+                          minWidth: 0,
+                          background: c.bg,
+                          color: c.ink,
+                          borderRadius: 3,
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '0 6px',
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap',
+                          fontFamily: SANS,
+                          fontSize: 10.5,
+                        }}
+                      >
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {SHORT[s.name] ?? s.name} {s.count}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-    </section>
+              </div>
+            ))}
+          </div>
+        ))}
+    </div>
   );
 }

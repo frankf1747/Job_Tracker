@@ -1,12 +1,9 @@
 /**
- * Interview rounds, and the flow map drawn from them.
+ * Interview rounds, and the summary drawn from them.
  *
  * Each application records its rounds in order: round 1 HR, round 2 hiring
- * manager, round 3 panel. The map follows every application from its first
- * round to how it ended. An ending sits in the column right after that
- * application's last round, so "rejected after one round" and "rejected after
- * three" are different places on the map, which is what shows where in the
- * process you tend to drop out.
+ * manager, round 3 panel. The summary counts what happened at each round
+ * number and how the applications ended.
  *
  * Pure: the component only draws what this returns.
  */
@@ -43,159 +40,64 @@ export function outcomeOf(status: Status): Outcome {
   return 'In progress';
 }
 
-export type FlowNode = {
-  id: string;
-  col: number;
-  name: string;
+export type SummaryRow = {
+  /** "Round 1", "Round 2", … then "Ended". */
+  label: string;
   kind: 'round' | 'outcome';
-  value: number;
-  x: number;
-  y: number;
-  h: number;
+  /** How many applications got this far. */
+  reached: number;
+  /** Counts within the row, in process order, zeros omitted. */
+  segments: { name: string; count: number }[];
 };
 
-export type FlowLink = {
-  source: string;
-  target: string;
-  /** How the applications in this band ended; colours it. */
-  outcome: Outcome;
-  value: number;
-  /** A closed band, ready for an SVG path's d attribute. */
-  path: string;
-  thickness: number;
-};
-
-export type RoundFlow = {
-  /** Applications with at least one round. */
+export type RoundSummary = {
+  /** Applications with at least one round; every bar is scaled to this. */
   total: number;
-  /** Rounds plus the ending column. */
-  cols: number;
-  nodes: FlowNode[];
-  links: FlowLink[];
+  rows: SummaryRow[];
 };
 
-export const NODE_WIDTH = 12;
-const NODE_GAP = 10;
-
-const order = (n: { kind: string; name: string }) =>
-  n.kind === 'round'
-    ? ROUND_TYPES.indexOf(n.name as RoundType)
-    : ROUND_TYPES.length + OUTCOMES.indexOf(n.name as Outcome);
-
-export function roundFlow(
-  apps: { status: Status; rounds: Round[] }[],
-  width: number,
-  height: number,
-): RoundFlow {
+/**
+ * What happened at each round, and how it all ended.
+ *
+ * One row per round number, counting the types seen there, then a row of
+ * outcomes. Every bar shares one scale, the number of applications with any
+ * rounds, so a shorter bar for round 3 than round 1 is the drop-off itself.
+ */
+export function roundSummary(apps: { status: Status; rounds: Round[] }[]): RoundSummary {
   const withRounds = apps.filter((a) => a.rounds.length > 0);
-  if (withRounds.length === 0) return { total: 0, cols: 0, nodes: [], links: [] };
+  if (withRounds.length === 0) return { total: 0, rows: [] };
 
-  const cols = Math.max(...withRounds.map((a) => a.rounds.length)) + 1;
-  const nodeMap = new Map<string, FlowNode>();
-  const linkMap = new Map<string, Omit<FlowLink, 'path' | 'thickness'>>();
-
-  const node = (col: number, name: string, kind: FlowNode['kind']) => {
-    const id = `${col}:${name}`;
-    let n = nodeMap.get(id);
-    if (!n) {
-      n = { id, col, name, kind, value: 0, x: 0, y: 0, h: 0 };
-      nodeMap.set(id, n);
+  const depth = Math.max(...withRounds.map((a) => a.rounds.length));
+  const rows: SummaryRow[] = [];
+  for (let i = 0; i < depth; i++) {
+    const counts = new Map<string, number>();
+    for (const a of withRounds) {
+      const t = a.rounds[i]?.type;
+      if (t) counts.set(t, (counts.get(t) ?? 0) + 1);
     }
-    n.value++;
-    return n;
-  };
+    const segments = ROUND_TYPES.filter((t) => counts.has(t)).map((t) => ({
+      name: t,
+      count: counts.get(t)!,
+    }));
+    rows.push({
+      label: `Round ${i + 1}`,
+      kind: 'round',
+      reached: segments.reduce((n, s) => n + s.count, 0),
+      segments,
+    });
+  }
 
+  const ends = new Map<Outcome, number>();
   for (const a of withRounds) {
-    const end = outcomeOf(a.status);
-    const path = [
-      ...a.rounds.map((r, i) => node(i, r.type, 'round')),
-      node(a.rounds.length, end, 'outcome'),
-    ];
-    for (let i = 0; i < path.length - 1; i++) {
-      const key = `${path[i].id}->${path[i + 1].id}|${end}`;
-      const l = linkMap.get(key);
-      if (l) l.value++;
-      else linkMap.set(key, { source: path[i].id, target: path[i + 1].id, outcome: end, value: 1 });
-    }
+    const o = outcomeOf(a.status);
+    ends.set(o, (ends.get(o) ?? 0) + 1);
   }
+  rows.push({
+    label: 'Ended',
+    kind: 'outcome',
+    reached: withRounds.length,
+    segments: OUTCOMES.filter((o) => ends.has(o)).map((o) => ({ name: o, count: ends.get(o)! })),
+  });
 
-  // Columns, each stacked in process order with endings beneath.
-  const columns: FlowNode[][] = Array.from({ length: cols }, () => []);
-  for (const n of nodeMap.values()) columns[n.col].push(n);
-  for (const c of columns) c.sort((a, b) => order(a) - order(b));
-
-  // One scale for every column, so a band's thickness means the same count
-  // anywhere on the map: the tightest column decides it.
-  const k = Math.min(
-    ...columns
-      .filter((c) => c.length)
-      .map((c) => (height - NODE_GAP * (c.length - 1)) / c.reduce((sum, n) => sum + n.value, 0)),
-  );
-
-  const step = cols > 1 ? (width - NODE_WIDTH) / (cols - 1) : 0;
-  for (const c of columns) {
-    let y = 0;
-    for (const n of c) {
-      n.x = n.col * step;
-      n.y = y;
-      n.h = n.value * k;
-      y += n.h + NODE_GAP;
-    }
-  }
-
-  // Bands leave and arrive in an order that keeps them from crossing more than
-  // they must: by the far end's position, then by outcome.
-  const raw = [...linkMap.values()];
-  const outRank = (o: Outcome) => OUTCOMES.indexOf(o);
-  const nodeOf = (id: string) => nodeMap.get(id)!;
-  const sy = new Map<FlowLink, number>();
-  const ty = new Map<FlowLink, number>();
-  const links: FlowLink[] = raw.map((l) => ({ ...l, path: '', thickness: l.value * k }));
-
-  const stack = (
-    group: (l: FlowLink) => string,
-    far: (l: FlowLink) => FlowNode,
-    into: Map<FlowLink, number>,
-    start: (id: string) => number,
-  ) => {
-    const by = new Map<string, FlowLink[]>();
-    for (const l of links) {
-      const g = group(l);
-      by.set(g, [...(by.get(g) ?? []), l]);
-    }
-    for (const [id, ls] of by) {
-      ls.sort((a, b) => far(a).y - far(b).y || outRank(a.outcome) - outRank(b.outcome));
-      let y = start(id);
-      for (const l of ls) {
-        into.set(l, y);
-        y += l.thickness;
-      }
-    }
-  };
-  stack(
-    (l) => l.source,
-    (l) => nodeOf(l.target),
-    sy,
-    (id) => nodeOf(id).y,
-  );
-  stack(
-    (l) => l.target,
-    (l) => nodeOf(l.source),
-    ty,
-    (id) => nodeOf(id).y,
-  );
-
-  for (const l of links) {
-    const x0 = nodeOf(l.source).x + NODE_WIDTH;
-    const x1 = nodeOf(l.target).x;
-    const xm = (x0 + x1) / 2;
-    const a = sy.get(l)!;
-    const b = ty.get(l)!;
-    const t = l.thickness;
-    l.path =
-      `M${x0},${a}C${xm},${a} ${xm},${b} ${x1},${b}` +
-      `L${x1},${b + t}C${xm},${b + t} ${xm},${a + t} ${x0},${a + t}Z`;
-  }
-
-  return { total: withRounds.length, cols, nodes: columns.flat(), links };
+  return { total: withRounds.length, rows };
 }
