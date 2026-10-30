@@ -3,7 +3,7 @@
  *
  * Each application records its rounds in order: round 1 HR, round 2 hiring
  * manager, round 3 panel. The summary counts what happened at each round
- * number and how the applications ended.
+ * number and where each application stands now.
  *
  * Pure: the component only draws what this returns.
  */
@@ -41,7 +41,10 @@ export function outcomeOf(status: Status): Outcome {
 }
 
 export type SummaryRow = {
-  /** "Round 1", "Round 2", … then "Ended". */
+  /**
+   * "Round 1", "Round 2", … then "Status": where each application stands now.
+   * Not "Ended", since applications still in progress are counted there too.
+   */
   label: string;
   kind: 'round' | 'outcome';
   /** How many applications got this far. */
@@ -57,7 +60,7 @@ export type RoundSummary = {
 };
 
 /**
- * What happened at each round, and how it all ended.
+ * What happened at each round, and where each application stands now.
  *
  * One row per round number, counting the types seen there, then a row of
  * outcomes. Every bar shares one scale, the number of applications with any
@@ -93,7 +96,7 @@ export function roundSummary(apps: { status: Status; rounds: Round[] }[]): Round
     ends.set(o, (ends.get(o) ?? 0) + 1);
   }
   rows.push({
-    label: 'Ended',
+    label: 'Status',
     kind: 'outcome',
     reached: withRounds.length,
     segments: OUTCOMES.filter((o) => ends.has(o)).map((o) => ({ name: o, count: ends.get(o)! })),

@@ -48,7 +48,6 @@ const SHORT: Record<string, string> = {
   Behavioral: 'Behav.',
   'Panel / Final': 'Panel',
   Other: 'Other',
-  'In progress': 'Open',
   Offer: 'Offer',
   Rejected: 'Rejected',
   Ghosted: 'Ghosted',

@@ -58,7 +58,7 @@ describe('roundSummary', () => {
 
   it('gives one row per round, counting types in process order', () => {
     const line = (i: number) => sum.rows[i].segments.map((s) => `${s.name}:${s.count}`);
-    expect(sum.rows.map((r) => r.label)).toEqual(['Round 1', 'Round 2', 'Round 3', 'Ended']);
+    expect(sum.rows.map((r) => r.label)).toEqual(['Round 1', 'Round 2', 'Round 3', 'Status']);
     expect(line(0)).toEqual(['HR / Recruiter:3', 'Hiring Manager:1']);
     expect(line(1)).toEqual(['Hiring Manager:2']);
     expect(line(2)).toEqual(['Panel / Final:1']);
@@ -68,15 +68,15 @@ describe('roundSummary', () => {
     expect(sum.rows.slice(0, 3).map((r) => r.reached)).toEqual([4, 2, 1]);
   });
 
-  it('ends with how every application with rounds turned out', () => {
-    const ended = sum.rows[3];
-    expect(ended.kind).toBe('outcome');
-    expect(ended.segments.map((s) => `${s.name}:${s.count}`)).toEqual([
+  it('ends with where every application with rounds stands now', () => {
+    const status = sum.rows[3];
+    expect(status.kind).toBe('outcome');
+    expect(status.segments.map((s) => `${s.name}:${s.count}`)).toEqual([
       'In progress:1',
       'Offer:1',
       'Rejected:2',
     ]);
-    expect(ended.reached).toBe(4);
+    expect(status.reached).toBe(4);
   });
 
   it('is empty, not broken, when nothing has rounds yet', () => {
