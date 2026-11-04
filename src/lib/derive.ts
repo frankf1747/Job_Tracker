@@ -6,7 +6,8 @@
  */
 
 import type { Application, Status } from './schema';
-import { DAY, STATUSES, isResponse } from './schema';
+import { STATUSES, isResponse } from './schema';
+import { weeksBack } from './weeks';
 
 export type Filter = {
   skills: string[];
@@ -109,7 +110,7 @@ export function derive(rows: Application[], now: Date): Derived {
     responded: rows.filter(isResponse).length,
     interviews: ge(2),
     offers: ge(3),
-    thisWeek: rows.filter((r) => now.getTime() - r.appliedTs < 7 * DAY).length,
+    thisWeek: rows.filter((r) => weeksBack(r.appliedTs, now) === 0).length,
   };
 }
 

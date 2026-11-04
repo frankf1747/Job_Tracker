@@ -143,39 +143,50 @@ describe('exitStats', () => {
 });
 
 describe('momentum', () => {
-  test('buckets by week and returns oldest first', () => {
+  // NOW is Tuesday Jul 21, so this week is Mon Jul 20 – Sun Jul 26.
+  test('buckets by Monday–Sunday week and returns oldest first', () => {
     const rows = [
-      app({ applied: '2026-07-20' }), // this week
-      app({ applied: '2026-07-19' }), // this week
-      app({ applied: '2026-07-10' }), // one week back
+      app({ applied: '2026-07-21' }), // Tuesday: this week
+      app({ applied: '2026-07-20' }), // Monday: this week
+      app({ applied: '2026-07-19' }), // Sunday: last week, though only two days ago
+      app({ applied: '2026-07-13' }), // Monday: last week
+      app({ applied: '2026-07-12' }), // Sunday: two weeks back
     ];
     const m = momentum(rows, NOW);
     expect(m.bars).toHaveLength(8);
-    expect(m.bars[7].label).toBe('now');
-    expect(m.bars[0].label).toBe('-7');
     expect(m.thisWeek).toBe(2);
+    expect(m.bars.map((b) => b.count)).toEqual([0, 0, 0, 0, 0, 1, 2, 2]);
   });
 
-  test('each bar carries its raw count for the hover tooltip', () => {
-    const rows = [
-      app({ applied: '2026-07-20' }),
-      app({ applied: '2026-07-19' }),
-      app({ applied: '2026-07-10' }),
-    ];
-    const m = momentum(rows, NOW);
-    expect(m.bars[7].count).toBe(2); // this week
-    expect(m.bars[6].count).toBe(1); // one week back
-    expect(m.bars[0].count).toBe(0);
+  test('labels each bar by the Monday it starts on, with the full range on hover', () => {
+    const m = momentum([], NOW);
+    expect(m.bars[7]).toMatchObject({ label: 'this wk', tip: 'Jul 20 – Jul 26' });
+    expect(m.bars[6]).toMatchObject({ label: '7/13', tip: 'Jul 13 – Jul 19' });
+    expect(m.bars[0]).toMatchObject({ label: '6/1', tip: 'Jun 1 – Jun 7' });
+  });
+
+  test('a Sunday still counts in its own week', () => {
+    const sunday = new Date(2026, 6, 26, 23, 30);
+    expect(momentum([app({ applied: '2026-07-20' })], sunday).thisWeek).toBe(1);
+    expect(momentum([app({ applied: '2026-07-27' })], new Date(2026, 6, 27)).bars[6].count).toBe(0);
+  });
+
+  test('a week spanning a clock change keeps its rows', () => {
+    // US clocks fall back on Sun Nov 1 2026.
+    const rows = [app({ applied: '2026-10-26' }), app({ applied: '2026-11-01' })];
+    const m = momentum(rows, new Date(2026, 10, 3));
+    expect(m.thisWeek).toBe(0);
+    expect(m.bars[6].count).toBe(2);
   });
 
   test('describes the change against last week in words', () => {
-    const up = momentum([app({ applied: '2026-07-20' }), app({ applied: '2026-07-19' })], NOW);
+    const up = momentum([app({ applied: '2026-07-20' }), app({ applied: '2026-07-21' })], NOW);
     expect(up.deltaLabel).toContain('more than last week');
 
-    const down = momentum([app({ applied: '2026-07-10' }), app({ applied: '2026-07-11' })], NOW);
+    const down = momentum([app({ applied: '2026-07-13' }), app({ applied: '2026-07-19' })], NOW);
     expect(down.deltaLabel).toContain('fewer than last week');
 
-    const flat = momentum([app({ applied: '2026-07-20' }), app({ applied: '2026-07-10' })], NOW);
+    const flat = momentum([app({ applied: '2026-07-20' }), app({ applied: '2026-07-14' })], NOW);
     expect(flat.deltaLabel).toBe('= same as last week');
   });
 

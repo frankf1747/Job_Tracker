@@ -12,7 +12,7 @@ const VIEWS: [MomentumView, string][] = [
 ];
 
 const HEADINGS: Record<MomentumView, [string, string]> = {
-  week: ['WEEKLY MOMENTUM', 'last 8 weeks'],
+  week: ['WEEKLY MOMENTUM', 'Mon–Sun, last 8 weeks'],
   day: ['DAILY MOMENTUM', 'last 7 days'],
   hour: ['BY HOUR', 'when you log applications'],
 };
@@ -89,7 +89,7 @@ function Bars({ series }: { series: Momentum }) {
       {series.bars.map((b, i) => (
         <div
           key={i}
-          title={`${b.label}: ${b.count} application${b.count === 1 ? '' : 's'}`}
+          title={`${b.tip ?? b.label}: ${b.count} application${b.count === 1 ? '' : 's'}`}
           style={{
             flex: 1,
             display: 'flex',
@@ -245,7 +245,7 @@ export function MomentumPanel({
         <>
           <Headline
             series={view === 'week' ? weekly : daily}
-            unit={view === 'week' ? 'apps this week' : 'apps today'}
+            unit={view === 'week' ? 'apps since Monday' : 'apps today'}
           />
           <Bars series={view === 'week' ? weekly : daily} />
         </>

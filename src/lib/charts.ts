@@ -8,6 +8,7 @@
 import type { Application, Status } from './schema';
 import { DAY, PIE_TINTS } from './schema';
 import { pieArcs, type PieArc } from './derive';
+import { mondayOf, weeksBack } from './weeks';
 import type { Derived, Filter } from './derive';
 
 /** The four progressive funnel stages, paired with the `reached` value each implies. */
@@ -108,7 +109,14 @@ export function exitStats(d: Derived, filter: Filter): ExitStat[] {
   });
 }
 
-export type MomentumBar = { h: number; count: number; fill: string; label: string };
+export type MomentumBar = {
+  h: number;
+  count: number;
+  fill: string;
+  label: string;
+  /** Hover text; the label is used when absent. */
+  tip?: string;
+};
 
 export type Momentum = {
   bars: MomentumBar[];
@@ -170,12 +178,36 @@ export function dailyMomentum(allRows: Application[], now: Date): Momentum {
   };
 }
 
+/** A week's bar label (the Monday it starts on) and its full range for the tooltip. */
+function weekLabels(thisMonday: Date, back: number): { label: string; tip: string } {
+  const start = new Date(
+    thisMonday.getFullYear(),
+    thisMonday.getMonth(),
+    thisMonday.getDate() - 7 * back,
+  );
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+  const range = `${shortDate(start)} – ${shortDate(end)}`;
+  return {
+    label: back === 0 ? 'this wk' : `${start.getMonth() + 1}/${start.getDate()}`,
+    tip: range,
+  };
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const shortDate = (d: Date) => `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+
+/**
+ * Applications per calendar week, Monday to Sunday, for the last eight weeks,
+ * oldest first. "This week" is since Monday, so early in the week it is low
+ * against a whole last week; that is the honest reading of a calendar week.
+ */
 export function momentum(allRows: Application[], now: Date): Momentum {
   const weeks = new Array(8).fill(0);
   for (const r of allRows) {
-    const wk = Math.floor((now.getTime() - r.appliedTs) / (7 * DAY));
+    const wk = weeksBack(r.appliedTs, now);
     if (wk >= 0 && wk < 8) weeks[wk]++;
   }
+  const monday = mondayOf(now);
 
   const maxWk = Math.max(1, ...weeks);
   const bars = weeks
@@ -183,7 +215,7 @@ export function momentum(allRows: Application[], now: Date): Momentum {
       h: Math.round((c / maxWk) * 100),
       count: c,
       fill: i === 0 ? '#41678a' : '#b9cbd9',
-      label: i === 0 ? 'now' : '-' + i,
+      ...weekLabels(monday, i),
     }))
     .reverse();
 

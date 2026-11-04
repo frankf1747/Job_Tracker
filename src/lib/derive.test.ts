@@ -212,11 +212,11 @@ describe('derive', () => {
     expect(d.offers).toBe(1);
   });
 
-  test('thisWeek counts only the last seven days', () => {
+  test('thisWeek counts since Monday, not the last seven days', () => {
     const rows = [
-      app({ applied: '2026-07-20' }),
-      app({ applied: '2026-07-15' }),
-      app({ applied: '2026-07-01' }),
+      app({ applied: '2026-07-21' }), // Tuesday
+      app({ applied: '2026-07-20' }), // Monday
+      app({ applied: '2026-07-19' }), // the Sunday before
     ];
     expect(derive(rows, now).thisWeek).toBe(2);
   });
