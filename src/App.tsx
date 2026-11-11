@@ -79,7 +79,9 @@ import {
 import { supabaseResumeBackend } from './data/resumes';
 import type { NewResume } from './components/ResumeField';
 import { listQueue, deleteQueued, type QueuedJob } from './data/queue';
-import { draftFromQueued } from './lib/queueDraft';
+import { captureSources, draftFromQueued } from './lib/queueDraft';
+import { buildLogEntry, extracted, type Proposal } from './lib/extractionLog';
+import { logExtraction } from './data/extractionLog';
 import { searchQueue } from './lib/triage';
 import { supabase } from './lib/supabase';
 
@@ -208,6 +210,9 @@ export default function App({ source }: { source: DataSource }) {
   const [queueBusyId, setQueueBusyId] = useState<string | null>(null);
   // The queued row the review modal is promoting, removed once the row saves.
   const [promotingId, setPromotingId] = useState<string | null>(null);
+  // What the form held when the review opened, so the save can log what the
+  // parser got right and what was corrected. Null for a manual entry.
+  const proposalRef = useRef<Proposal | null>(null);
 
   const companiesRef = useRef<Company[]>(companies);
   useEffect(() => {
@@ -479,7 +484,13 @@ export default function App({ source }: { source: DataSource }) {
   const promoteQueued = useCallback((job: QueuedJob) => {
     setEditingId(null);
     setPromotingId(job.id);
-    setReview(draftFromQueued(job, new Date()));
+    const draft = draftFromQueued(job, new Date());
+    proposalRef.current = {
+      origin: 'queue',
+      proposed: extracted(draft),
+      sources: captureSources(job),
+    };
+    setReview(draft);
     setView('home');
   }, []);
 
@@ -648,6 +659,7 @@ export default function App({ source }: { source: DataSource }) {
             // No resume selected by default — the parser already leaves it
             // blank, so a paste never auto-attaches one.
             setEditingId(null);
+            proposalRef.current = { origin: 'paste', proposed: extracted(draft) };
             setReview(draft);
           }, wait);
         })
@@ -668,6 +680,7 @@ export default function App({ source }: { source: DataSource }) {
   const addManually = useCallback(() => {
     setEditingId(null);
     setManual(true);
+    proposalRef.current = null;
     setReview(blankDraft(new Date()));
   }, []);
 
@@ -676,7 +689,9 @@ export default function App({ source }: { source: DataSource }) {
     const row = rowsRef.current.find((r) => r.id === id);
     if (!row) return;
     setEditingId(id);
-    setReview(draftFromApplication(row));
+    const draft = draftFromApplication(row);
+    proposalRef.current = { origin: 'edit', proposed: extracted(draft) };
+    setReview(draft);
   }, []);
 
   // ---------- filtering ----------
@@ -849,6 +864,7 @@ export default function App({ source }: { source: DataSource }) {
     setManual(false);
     setPendingResume(null);
     setPromotingId(null);
+    proposalRef.current = null;
   }, []);
 
   /**
@@ -889,6 +905,13 @@ export default function App({ source }: { source: DataSource }) {
       appliedTs: Date.parse(fields.applied + 'T00:00'),
     };
 
+    // Read before closeReview clears it.
+    const proposal = proposalRef.current;
+    const logSave = (applicationId: string) => {
+      const entry = proposal && buildLogEntry(proposal, review);
+      if (entry && userId) logExtraction(entry, userId, applicationId);
+    };
+
     try {
       // Persist the modal's staged resume first, so the row's label points at a
       // record that exists. Guarded by the label so a resume that was staged and
@@ -900,6 +923,7 @@ export default function App({ source }: { source: DataSource }) {
 
       if (editingId) {
         if (userId) await updateApplication(editingId, fields);
+        logSave(editingId);
         setRows((rs) => rs.map((r) => (r.id === editingId ? { ...r, ...fields, ...derived } : r)));
         closeReview();
         showToast(`Updated — ${review.company} · ${review.position}`, 'success');
@@ -915,6 +939,7 @@ export default function App({ source }: { source: DataSource }) {
               createdAt: Date.now(),
               ...derived,
             };
+        logSave(saved.id);
         // Promoted from the queue: now that it is a real application, the
         // capture has served its purpose and leaves the queue.
         if (promotingId) {

@@ -1,0 +1,15 @@
+{
+  "version": "2026-11-11",
+  "date": "2026-11-11",
+  "rows": 119,
+  "scores": {
+    "company": 15,
+    "position": 6.3,
+    "location": 30,
+    "salary": 90,
+    "skills": 84.9,
+    "industry": 36.1,
+    "level": 65.5,
+    "employmentType": 76.5
+  }
+}

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { QueuedJob } from '../data/queue';
-import { draftFromQueued } from './queueDraft';
+import { captureSources, draftFromQueued } from './queueDraft';
 
 const job = (over: Partial<QueuedJob> = {}): QueuedJob =>
   ({
@@ -36,5 +36,23 @@ describe('promoting a queued job', () => {
 
   test('still links to the employer page, not the aggregator', () => {
     expect(draftFromQueued(job(), new Date()).sourceUrl).toBe('https://careers.patagonia.com/1');
+  });
+});
+
+describe('captureSources', () => {
+  test('credits the capture with what the extension read, and the parser with the rest', () => {
+    const src = captureSources(job({ salary: '' }));
+    expect(src).toMatchObject({
+      company: 'capture',
+      position: 'capture',
+      location: 'capture',
+      salary: 'parser',
+      skills: 'parser',
+      industry: 'parser',
+    });
+  });
+
+  test('a field the capture missed is blamed on the parser that filled it', () => {
+    expect(captureSources(job({ location: '' })).location).toBe('parser');
   });
 });

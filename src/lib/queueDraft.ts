@@ -10,6 +10,7 @@
 import { parsePostingLocal, type Draft } from './parsePosting';
 import type { QueuedJob } from '../data/queue';
 import { isoOf } from './derive';
+import type { ExtractedField, FieldSource } from './extractionLog';
 
 export function draftFromQueued(job: QueuedJob, today: Date): Draft {
   // The description carries the requirements the inference relies on; without
@@ -34,5 +35,24 @@ export function draftFromQueued(job: QueuedJob, today: Date): Draft {
     // The captured text, not the title-and-company fallback above.
     description: job.description?.trim() ?? '',
     fitReason: job.reason,
+  };
+}
+
+/**
+ * Which extracted fields the extension captured, rather than the parser
+ * guessed. Mirrors the "captured fields win" choices in draftFromQueued, so the
+ * extraction log blames the right one when a field is corrected.
+ */
+export function captureSources(job: QueuedJob): Partial<Record<ExtractedField, FieldSource>> {
+  const from = (captured: string): FieldSource => (captured ? 'capture' : 'parser');
+  return {
+    company: from(job.company),
+    position: from(job.position),
+    location: from(job.location),
+    salary: from(job.salary),
+    skills: 'parser',
+    industry: 'parser',
+    level: 'parser',
+    employmentType: 'parser',
   };
 }
