@@ -5,6 +5,8 @@
  *   node scripts/replay.mjs                 accuracy, top misses, noisy skills
  *   node scripts/replay.mjs --out misses.json   every miss, for analysis
  *   node scripts/replay.mjs --baseline      record these scores as the baseline
+ *   node scripts/replay.mjs --save rows.json    also keep the fetched rows, and
+ *   node scripts/replay.mjs --from rows.json    replay those without signing in
  *
  * The saved rows are labelled data: the posting next to the values that were
  * approved. So any change to the rules can be scored before it ships, and a
@@ -24,19 +26,27 @@ import { loadParser } from './parser.mjs';
 import { FIELDS, formatScore, hasHeader, score, skillTrouble } from './extraction-score.mjs';
 
 const args = process.argv.slice(2);
-const outPath = args.includes('--out') ? args[args.indexOf('--out') + 1] : null;
+const opt = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
+const outPath = opt('--out');
 const BASELINE = new URL('./replay-baseline.json', import.meta.url);
 
 const INFERRED = ['skills', 'industry', 'level', 'employmentType'];
 
-const { parsePostingLocal, normalizeLoc, PARSER_VERSION } = await loadParser();
-const client = await connect();
-const rows = await select(
-  client,
-  'applications',
-  'select=id,company,position,location_raw,skills,industry,level,employment_type,salary,description,fit_reason,source_url,applied_on' +
-    '&description=neq.&order=applied_on.desc',
-);
+const { parsePostingLocal, normalizeLoc, withLearned, PARSER_VERSION } = await loadParser();
+
+// Every row, oldest first: each posting is replayed knowing only the rows
+// saved before it, which is all the app knew when it was reviewed.
+const everything = opt('--from')
+  ? JSON.parse(readFileSync(opt('--from'), 'utf8'))
+  : await select(
+      await connect(),
+      'applications',
+      'select=id,company,position,location_raw,skills,industry,level,employment_type,salary,description,source_url,applied_on,created_at' +
+        '&order=created_at.asc',
+    );
+if (opt('--save')) writeFileSync(opt('--save'), JSON.stringify(everything));
+const rows = everything.filter((r) => r.description);
+const earlier = (r) => everything.filter((h) => h.created_at < r.created_at).reverse();
 
 const today = new Date();
 const site = (u) => {
@@ -49,8 +59,13 @@ const site = (u) => {
 
 const groups = { headed: [], body: [] };
 for (const r of rows) {
-  const p = parsePostingLocal(r.description, today);
-  groups[hasHeader(r.description, r.company, r.position) ? 'headed' : 'body'].push({
+  // Text without its header came from the queue, where the extension captured
+  // the company and title; the parser was given those. A paste had nothing.
+  const headed = hasHeader(r.description, r.company, r.position);
+  const known = headed ? {} : { position: r.position };
+  let p = parsePostingLocal(r.description, today, known);
+  p = withLearned(headed ? p : { ...p, company: r.company }, earlier(r));
+  groups[headed ? 'headed' : 'body'].push({
     id: r.id,
     site: site(r.source_url),
     label: `${r.company} · ${r.position}`,

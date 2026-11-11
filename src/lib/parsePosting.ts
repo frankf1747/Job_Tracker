@@ -164,23 +164,50 @@ const LOCATION_LINE = /^[A-Za-z.\-' ]{2,30},\s*[A-Z]{2}\b/;
 /** A Workday location code that is a line to itself, e.g. "US-DE-Wilmington". */
 const LOCATION_CODE = /^[A-Za-z]{2,}-[A-Za-z]{2,}-[A-Za-z]/;
 
-const INDUSTRY_TESTS: [RegExp, string][] = [
+/**
+ * Vocabulary for each industry, whole words only. "financ" as a bare prefix
+ * matched "financial wellness" in every benefits section, and "chip" matched
+ * "chipping in".
+ */
+const INDUSTRY_TERMS: [RegExp, string][] = [
   [
-    /healthcare|clinic|patient|hospital|pharma|biotech|therapeut|genom|molecul|clinical trial/i,
+    /\b(health\s?care|clinics?|clinical|patients?|hospitals?|pharma\w*|biotech\w*|therapeutics?|genomic\w*|life sciences|medical|medicines?|biologics?|diagnostics?)\b/gi,
     'Bio / Healthcare',
   ],
-  [/bank|payment|fintech|trading|lending|financ/i, 'Fintech'],
-  [/retail|commerce|marketplace|shopping/i, 'E-commerce / Retail'],
-  // Unilever-style CPG: no "retail" anywhere, but unmistakable supply-chain language.
   [
-    /consumer goods|\bcpg\b|\bfmcg\b|supply chain|replenishment|on-?shelf|grocer|packaged goods/i,
+    /\b(fintech|banks?|banking|payments?|lending|lenders?|trading|brokerage|credit cards?|financial services|wealth management|asset management)\b/gi,
+    'Fintech',
+  ],
+  [
+    /\b(retail(?:er|ers)?|e-?commerce|marketplaces?|shoppers?|stores?|merchandis\w*|apparel|fashion)\b/gi,
+    'E-commerce / Retail',
+  ],
+  [
+    /\b(consumer goods|cpg|fmcg|consumer products?|packaged goods|grocer\w*|beverages?|household brands?|cpfr|replenishment|on-?shelf)\b/gi,
     'Consumer Goods',
   ],
-  [/semiconductor|hardware|chip|silicon|device|robot/i, 'Hardware / Semiconductors'],
-  [/game|gaming|media|entertainment|studio/i, 'Media / Gaming'],
-  [/consult|advisory/i, 'Consulting'],
-  [/analytics|data platform|business intelligence/i, 'Data / Analytics'],
+  [
+    /\b(semiconductors?|hardware|chips?|silicon|wafers?|devices?|robots?|robotics|electronics|equipment)\b/gi,
+    'Hardware / Semiconductors',
+  ],
+  [
+    /\b(games?|gaming|gamers?|media|entertainment|studios?|streaming|players)\b/gi,
+    'Media / Gaming',
+  ],
+  [/\b(consulting|consultancy|consultants?|advisory)\b/gi, 'Consulting'],
+  [
+    /\b(analytics platform|data platform|data cloud|business intelligence platform)\b/gi,
+    'Data / Analytics',
+  ],
 ];
+
+/**
+ * Lines about pay, benefits and the law. They are the same at every employer,
+ * name every industry's words ("health insurance", "financial wellness"), and
+ * say nothing about what this one does.
+ */
+const BOILERPLATE_LINE =
+  /\b(insurance|401\s?\(?k\)?|benefits?|equal (?:employment )?opportunit\w*|eeo|disabilit\w*|veterans?|paid time off|pto|wellness|dental|vision|parental|accommodation|background check|e-verify|salary|compensation|pay range|bonus|equity)\b/i;
 
 /**
  * One money amount: "$48", "$120,000", "$95k".
@@ -219,28 +246,114 @@ export function stripMarkdownLinks(raw: string): { text: string; links: MdLink[]
   return { text, links };
 }
 
+/**
+ * The industry whose vocabulary the posting uses most.
+ *
+ * Boilerplate lines are skipped, and the opening of the posting counts double,
+ * since that is where a company says what it does. A single passing word is
+ * not enough to leave the default.
+ */
 export function guessIndustry(text: string): string {
-  for (const [re, ind] of INDUSTRY_TESTS) {
-    if (re.test(text)) return ind;
+  const lines = text.split('\n').filter((l) => !BOILERPLATE_LINE.test(l));
+  const body = lines.join('\n');
+  const opening = body.slice(0, Math.max(600, Math.floor(body.length / 4)));
+  let best: string = INDUSTRIES[0];
+  let top = 1;
+  for (const [re, industry] of INDUSTRY_TERMS) {
+    const n = (body.match(re)?.length ?? 0) + (opening.match(re)?.length ?? 0);
+    if (n > top) [best, top] = [industry, n];
   }
-  return INDUSTRIES[0];
+  return best;
 }
 
-export function guessLevel(text: string): string {
-  if (/\b(new[-\s]?grad|university grad|recent grad)\b/i.test(text)) return 'New Grad';
-  // Both sides need a boundary. Without the trailing one, "intern" matched
-  // "internal stakeholders" and filed full-time roles as internships.
-  if (/\b(intern|interns|internship|internships)\b/i.test(text)) return 'Intern';
-  if (/\b(senior|sr\.?)\b/i.test(text)) return 'Senior';
-  if (/\bassociate\b/i.test(text)) return 'Associate';
+const NEW_GRAD =
+  /\b(new[-\s]?grads?|university grad(?:uate)?s?|recent grad(?:uate)?s?|college grad(?:uate)?s?)\b/i;
+const INTERN = /\b(intern|interns|internship|internships|co-?op)\b/i;
+
+/**
+ * Level, decided by the job title first.
+ *
+ * The title is the one place a posting states the level of this role. The body
+ * mentions levels constantly about other people — "reports to a Senior
+ * Manager", "internship experience counts", "work with senior leaders" — and
+ * reading those filed a fifth of all postings at the wrong level. So the body
+ * is consulted only when the title says nothing, and only for phrasing that
+ * describes the role itself.
+ */
+export function guessLevel(title: string, body = ''): string {
+  if (NEW_GRAD.test(title)) return 'New Grad';
+  // Whole words only: "intern" must not match "internal" or "international".
+  if (INTERN.test(title)) return 'Intern';
+  if (/\b(senior|sr\.?)\b/i.test(title)) return 'Senior';
+  if (/\b(associate|assoc\.?)\b/i.test(title)) return 'Associate';
+
+  if (NEW_GRAD.test(body)) return 'New Grad';
+  if (
+    /\b(?:this|our|the)\s+(?:summer\s+|fall\s+|spring\s+)?(?:\d{4}\s+)?internship\b|\binternship\s+(?:program|position|role|opportunity)\b|\b(?:summer|fall|spring)\s+20\d\d\s+intern(?:ship)?\b/i.test(
+      body,
+    )
+  ) {
+    return 'Intern';
+  }
   return 'Entry-level';
 }
 
-export function guessEmploymentType(text: string, level: string): string {
-  if (/\bpart[-\s]?time\b/i.test(text)) return 'Part-time';
-  if (/\b(contract|contractor|contract-to-hire)\b/i.test(text)) return 'Contract';
-  if (/\b(temporary|temp|seasonal)\b/i.test(text)) return 'Temporary';
-  if (/\b(internship|internships|co-?op)\b/i.test(text) || level === 'Intern') return 'Internship';
+/** "Employment type: Full-time", "Time Type: Part time", "Status: Full-Time". */
+const TYPE_LABEL = /\b(?:employment|job|time|worker|position)\s+type|\bstatus\b|\bschedule\b/i;
+const TYPE_VALUE: [RegExp, string][] = [
+  [/\bfull[-\s]?time\b/i, 'Full-time'],
+  [/\bpart[-\s]?time\b/i, 'Part-time'],
+  [/\b(contract|contractor|fixed[-\s]term)\b/i, 'Contract'],
+  [/\b(temporary|temp|seasonal)\b/i, 'Temporary'],
+  [/\b(intern|internship|co-?op)\b/i, 'Internship'],
+];
+const typeIn = (s: string) => TYPE_VALUE.find(([re]) => re.test(s))?.[1] ?? null;
+
+/**
+ * Employment type: a labelled field, then the title, then only phrasing that
+ * describes this role.
+ *
+ * Bodies list every type in their boilerplate — "benefits for full-time and
+ * part-time employees", "contract manufacturing partners", "seasonal
+ * forecasts" — so a bare mention anywhere is not evidence.
+ */
+export function guessEmploymentType(title: string, body: string, level: string): string {
+  for (const line of body.split('\n')) {
+    // A short labelled line, or LinkedIn's "Full-time · On-site" insight row.
+    const m = /^\s*([^:]{2,30}):\s*(.{2,40})$/.exec(line);
+    if (m && TYPE_LABEL.test(m[1])) {
+      const t = typeIn(m[2]);
+      if (t) return t;
+    }
+    const row = /^\s*(full[-\s]?time|part[-\s]?time|contract|temporary|internship)\s*(?:·|$)/i.exec(
+      line,
+    );
+    if (row) return typeIn(row[1])!;
+  }
+
+  // An intern title is left to the end: "part-time internship" is part-time.
+  const fromTitle = typeIn(title);
+  if (fromTitle && fromTitle !== 'Full-time' && fromTitle !== 'Internship') return fromTitle;
+
+  if (
+    /\b(?:is|be)\s+an?\s+part[-\s]?time\b|\bpart[-\s]?time\s+(?:position|role|job|internship|opportunity)\b/i.test(
+      body,
+    )
+  )
+    return 'Part-time';
+  if (
+    /\bcontract[-\s]to[-\s]hire\b|\b\d+[-\s]?(?:month|mo)\s+contract\b|\b(?:is|be)\s+an?\s+contract\b|\bcontract\s+(?:position|role|assignment)\b/i.test(
+      body,
+    )
+  )
+    return 'Contract';
+  if (
+    /\b(?:is|be)\s+an?\s+(?:temporary|seasonal)\b|\b(?:temporary|seasonal)\s+(?:position|role|assignment)\b/i.test(
+      body,
+    )
+  )
+    return 'Temporary';
+  if (level === 'Intern' || fromTitle === 'Internship') return 'Internship';
   return DEFAULT_EMPLOYMENT_TYPE;
 }
 
@@ -373,13 +486,17 @@ export function looksLikePosting(text: string): boolean {
  * Regex extraction. Deliberately permissive: anything it gets wrong is visible
  * and editable in the review modal before the row is saved.
  */
-export function parsePostingLocal(raw: string, today: Date): Draft {
+export function parsePostingLocal(
+  raw: string,
+  today: Date,
+  /** What is already known from elsewhere, e.g. a title the extension captured. */
+  known: { position?: string } = {},
+): Draft {
   const { text, links } = stripMarkdownLinks(raw);
   const lines = text
     .split(/\n+/)
     .map((l) => l.trim())
     .filter(Boolean);
-  const low = text.toLowerCase();
 
   const company = guessCompany(lines, text);
   const position = guessPosition(lines, text);
@@ -396,16 +513,18 @@ export function parsePostingLocal(raw: string, today: Date): Draft {
   const sm = text.match(SALARY_RE);
   if (sm) salary = sm[0].replace(/\s+/g, ' ').trim();
 
-  const level = guessLevel(text);
+  // A title captured from the page beats one guessed from the pasted lines.
+  const title = known.position || position;
+  const level = guessLevel(title, text);
 
   return {
     company: company || 'Company (edit me)',
     position: position || 'Role (edit me)',
     location,
     skills,
-    industry: guessIndustry(low),
+    industry: guessIndustry(text),
     level,
-    employmentType: guessEmploymentType(text, level),
+    employmentType: guessEmploymentType(title, text, level),
     salary,
     sourceUrl: pickSourceUrl(links, position, text),
     status: 'Submitted',

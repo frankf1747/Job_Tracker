@@ -18,6 +18,7 @@ export async function loadParser() {
         export { parsePostingLocal } from './src/lib/parsePosting.ts';
         export { normalizeLoc } from './src/lib/locations.ts';
         export { PARSER_VERSION } from './src/lib/extractionLog.ts';
+        export { withLearned } from './src/lib/learned.ts';
       `,
       resolveDir: root,
       loader: 'ts',

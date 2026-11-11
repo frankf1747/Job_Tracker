@@ -92,7 +92,10 @@ export function score(pairs, loc, fields = FIELDS) {
     }
     if (fields.includes('skills') && pair.proposed.skills && pair.saved.skills) {
       const d = skillDiff(pair.proposed.skills, pair.saved.skills);
-      for (const s of d.kept) (bump(s, 'proposed'), bump(s, 'kept'));
+      for (const s of d.kept) {
+        bump(s, 'proposed');
+        bump(s, 'kept');
+      }
       for (const s of d.extra) bump(s, 'proposed');
       for (const s of d.missing) bump(s, 'missed');
     }
@@ -130,6 +133,8 @@ export function skillTrouble(skills, top = 10) {
  * scoring the parser's company or title against it would only measure that.
  */
 export function hasHeader(text, company, position, within = 400) {
+  // LinkedIn's job body, as the extension captures it; the header is not in it.
+  if (/^\s*about the job\b/i.test(String(text ?? ''))) return false;
   const top = textKey(String(text ?? '').slice(0, within));
   const has = (s) => {
     const k = textKey(s);

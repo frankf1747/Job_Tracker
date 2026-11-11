@@ -88,6 +88,16 @@ describe('hasHeader', () => {
     ).toBe(true);
   });
 
+  test("LinkedIn's captured body has no header, even when it names the company", () => {
+    expect(
+      hasHeader(
+        'About the job\nAt Thermo Fisher Scientific, you will',
+        'Thermo Fisher Scientific',
+        'Analyst',
+      ),
+    ).toBe(false);
+  });
+
   test('a body captured on its own has neither', () => {
     expect(
       hasHeader('Position Summary\nYou will build dashboards.', 'Walmart', 'Project Manager II'),

@@ -16,7 +16,7 @@ export function draftFromQueued(job: QueuedJob, today: Date): Draft {
   // The description carries the requirements the inference relies on; without
   // one, the title and company still give the parser something to work from.
   const text = job.description?.trim() || `${job.position}\n${job.company}`;
-  const parsed = parsePostingLocal(text, today);
+  const parsed = parsePostingLocal(text, today, { position: job.position });
 
   return {
     ...parsed,

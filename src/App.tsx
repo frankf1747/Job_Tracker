@@ -81,6 +81,7 @@ import type { NewResume } from './components/ResumeField';
 import { listQueue, deleteQueued, type QueuedJob } from './data/queue';
 import { captureSources, draftFromQueued } from './lib/queueDraft';
 import { buildLogEntry, extracted, type Proposal } from './lib/extractionLog';
+import { withLearned } from './lib/learned';
 import { logExtraction } from './data/extractionLog';
 import { searchQueue } from './lib/triage';
 import { supabase } from './lib/supabase';
@@ -484,7 +485,7 @@ export default function App({ source }: { source: DataSource }) {
   const promoteQueued = useCallback((job: QueuedJob) => {
     setEditingId(null);
     setPromotingId(job.id);
-    const draft = draftFromQueued(job, new Date());
+    const draft = withLearned(draftFromQueued(job, new Date()), rowsRef.current);
     proposalRef.current = {
       origin: 'queue',
       proposed: extracted(draft),
@@ -652,7 +653,8 @@ export default function App({ source }: { source: DataSource }) {
       setParsing(true);
       const started = Date.now();
       parsePosting(text.trim(), new Date())
-        .then((draft) => {
+        .then((parsed) => {
+          const draft = withLearned(parsed, rowsRef.current);
           const wait = Math.max(0, PARSE_MIN_MS - (Date.now() - started));
           setTimeout(() => {
             setParsing(false);

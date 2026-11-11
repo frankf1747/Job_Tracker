@@ -260,40 +260,100 @@ describe('stripMarkdownLinks', () => {
 
 describe('guessEmploymentType', () => {
   test('defaults to full-time, which is what most postings are', () => {
-    expect(guessEmploymentType('A great analyst role at Acme.', 'Entry-level')).toBe('Full-time');
+    expect(
+      guessEmploymentType('Data Analyst', 'A great analyst role at Acme.', 'Entry-level'),
+    ).toBe('Full-time');
   });
 
-  test('reads an explicit type off the posting', () => {
-    expect(guessEmploymentType('Full-time · On-site', 'Entry-level')).toBe('Full-time');
-    expect(guessEmploymentType('This is a part-time position', 'Entry-level')).toBe('Part-time');
-    expect(guessEmploymentType('6-month contract role', 'Entry-level')).toBe('Contract');
-    expect(guessEmploymentType('Seasonal warehouse work', 'Entry-level')).toBe('Temporary');
+  test('reads a labelled field or LinkedIn insight row', () => {
+    expect(guessEmploymentType('Analyst', 'Full-time · On-site', 'Entry-level')).toBe('Full-time');
+    expect(guessEmploymentType('Analyst', 'Time Type: Part time', 'Entry-level')).toBe('Part-time');
+    expect(guessEmploymentType('Analyst', 'Status: Full-Time\nReports to: x', 'Entry-level')).toBe(
+      'Full-time',
+    );
+  });
+
+  test('reads the title', () => {
+    expect(guessEmploymentType('Data Analyst (Contract)', '', 'Entry-level')).toBe('Contract');
+    expect(guessEmploymentType('Seasonal Warehouse Associate', '', 'Associate')).toBe('Temporary');
+  });
+
+  test('reads phrasing that describes this role', () => {
+    expect(guessEmploymentType('Analyst', 'This is a part-time position', 'Entry-level')).toBe(
+      'Part-time',
+    );
+    expect(guessEmploymentType('Analyst', 'A 6-month contract role', 'Entry-level')).toBe(
+      'Contract',
+    );
+    expect(guessEmploymentType('Analyst', 'Contract-to-hire after 90 days', 'Entry-level')).toBe(
+      'Contract',
+    );
+  });
+
+  test('ignores types the boilerplate lists for other people', () => {
+    // Each of these filed a full-time role as something else.
+    for (const body of [
+      'Benefits offered to full-time and part-time employees may vary by state',
+      'Eligibility may vary for part time and temporary full-time employees and interns',
+      "support the oversight of Cosette's contract manufacturing partners",
+      'as a federal contractor, Premier complies with government regulations',
+      'Build weekly, monthly and seasonal forecasts',
+    ]) {
+      expect(guessEmploymentType('Data Analyst', body, 'Entry-level')).toBe('Full-time');
+    }
   });
 
   test('an intern-level role is an internship even when unstated', () => {
-    expect(guessEmploymentType('Data Science Intern', 'Intern')).toBe('Internship');
+    expect(guessEmploymentType('Data Science Intern', '', 'Intern')).toBe('Internship');
   });
 
   test('an explicit part-time beats the intern inference', () => {
-    expect(guessEmploymentType('Part-time internship, 20 hrs/week', 'Intern')).toBe('Part-time');
+    expect(guessEmploymentType('Data Intern', 'Part-time internship, 20 hrs/week', 'Intern')).toBe(
+      'Part-time',
+    );
   });
 });
 
 describe('guessLevel', () => {
-  test('picks the most specific level mentioned', () => {
+  test('reads the level off the title', () => {
     expect(guessLevel('Software Engineer, New Grad')).toBe('New Grad');
     expect(guessLevel('Data Science Internship')).toBe('Intern');
     expect(guessLevel('Senior Product Manager')).toBe('Senior');
     expect(guessLevel('Associate Analyst')).toBe('Associate');
+    expect(guessLevel('Assoc Supply Operations Analyst')).toBe('Associate');
     expect(guessLevel('Data Analyst')).toBe('Entry-level');
   });
 
   test('requires whole words, not prefixes', () => {
     // Regression: `\bintern` with no trailing boundary matched all of these.
-    expect(guessLevel('work with internal stakeholders')).toBe('Entry-level');
-    expect(guessLevel('internally facing tooling')).toBe('Entry-level');
-    expect(guessLevel('international sales support')).toBe('Entry-level');
-    expect(guessLevel('demonstrated seniority in the field')).toBe('Entry-level');
+    expect(guessLevel('Internal Audit Analyst')).toBe('Entry-level');
+    expect(guessLevel('International Sales Analyst')).toBe('Entry-level');
+  });
+
+  test('the title wins over the body', () => {
+    expect(guessLevel('Associate Product Manager', 'internship experience counts')).toBe(
+      'Associate',
+    );
+  });
+
+  test('ignores levels the body mentions about other people', () => {
+    // Each of these filed an entry-level role as Senior or Intern.
+    for (const body of [
+      'Reports to: Senior Manager, GTM Strategy',
+      'present findings to senior stakeholders',
+      'work directly with senior/lead business analysts',
+      'internship experience counts',
+      'Internship or co-op experience is a plus.',
+      'benefits may vary for part time employees and interns',
+    ]) {
+      expect(guessLevel('Data Analyst', body)).toBe('Entry-level');
+    }
+  });
+
+  test('reads the body when it describes this role', () => {
+    expect(guessLevel('Analyst', 'Open to recent graduates and new grads.')).toBe('New Grad');
+    expect(guessLevel('Analyst', 'Join our Summer 2027 internship program.')).toBe('Intern');
+    expect(guessLevel('Analyst', 'This internship runs 12 weeks.')).toBe('Intern');
   });
 
   test('new grad wins over intern when both appear', () => {
