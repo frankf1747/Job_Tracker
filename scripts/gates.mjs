@@ -29,6 +29,14 @@ export const SALARY_CEILING = 110_000;
 const ASPIRATIONAL = /\b(?:preferred|bonus|ideally|a plus|nice[- ]to[- ]haves?)\b/i;
 
 /**
+ * "<Bachelor's|Master's> degree …, or [equivalent] N years". The text between
+ * the degree and "or" may not hold a figure or a joining word, and at most two
+ * words may sit between "or" and the figure.
+ */
+const DEGREE_ROUTE =
+  /\b(?:(?:bachelor|master)[’'s]*(?:\s+degree)?|degree)\b(?:(?!\b(?:and|with|plus)\b)[^\d\n+])*?\bor\s+(?:[a-z]+\s+){0,2}?\d{1,2}\s*\+?\s*(?:(?:-|–|to)\s*\d{1,2}\s*\+?\s*)?years?\b/i;
+
+/**
  * The lowest number of years the posting actually requires.
  *
  * Two rules, both learned from a posting that was scored wrong:
@@ -83,6 +91,15 @@ export function yearsFloor(text) {
       here.push(years);
     }
     if (here.length === 0) continue;
+    // A degree he holds, offered as its own route: "Bachelor's degree, OR 3+
+    // years". The degree branch carries no figure, so it used to vanish and
+    // leave the substitute years as the floor. The degree alone satisfies the
+    // line, so it sets no floor at all. Skipping it, rather than recording a
+    // zero, keeps it out of the cross-line "or" below, which would otherwise
+    // let it erase a separate "2+ years in IT required" line. Tight on
+    // purpose: "or" has to lead straight to the figure, so "a Bachelor's in
+    // Finance or a related field and 3+ years" (one route) still binds.
+    if (DEGREE_ROUTE.test(chunk)) continue;
     const choice = /\bor\b/i.test(chunk);
     if (choice) alternatives = true;
     // Within one clause: a choice takes its easiest route, a nested

@@ -266,7 +266,9 @@ describe('alternative qualification paths', () => {
         "Bachelor's degree and 2 years of experience in health care services OR Master's degree " +
           'in related field OR 6 years of experience in health care services',
       ),
-    ).toBe(2);
+      // Was 2 until Nov 2026, when a degree offered as its own route started
+      // counting: the Master's branch needs no years, so the line sets no floor.
+    ).toBe(null);
   });
 
   it('handles a new-grad programme offering three routes', () => {
@@ -305,5 +307,42 @@ describe('degree ladders', () => {
           'field with 3+ years of relevant professional experience OR PhD with no prior experience',
       ),
     ).toBe(3);
+  });
+});
+
+describe('a degree offered as its own route', () => {
+  it('reads "Bachelor\'s degree, OR 3+ years" as no floor for someone with the degree', () => {
+    // Visa, Nov 2026: the years are a substitute for the degree, and the degree
+    // branch carries no figure, so it used to vanish and leave a 3-year gate.
+    expect(
+      yearsFloor("Bachelor's degree, OR 3+ years of relevant work experience"),
+    ).toBe(null);
+  });
+
+  it('handles "or equivalent N years" after the degree', () => {
+    expect(
+      yearsFloor("Bachelor's Degree in IT similar field or equivalent 4 years work experience, required"),
+    ).toBe(null);
+  });
+
+  it('still binds a separate years requirement on the next line', () => {
+    expect(
+      yearsFloor(
+        "Bachelor's Degree in IT similar field or equivalent 4 years work experience, required\n" +
+          '2+ years experience in an IT environment required',
+      ),
+    ).toBe(2);
+  });
+
+  it('does not treat "or related field and 3+ years" as a choice of routes', () => {
+    expect(
+      yearsFloor("Bachelor's degree in Finance or a related field and 3+ years of experience"),
+    ).toBe(3);
+  });
+
+  it('does not count a doctorate-only route', () => {
+    expect(
+      yearsFloor('A PhD in a quantitative discipline, or 5+ years of experience in applied research'),
+    ).toBe(5);
   });
 });
