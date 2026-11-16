@@ -79,6 +79,29 @@ export const guessInput: CSSProperties = {
   color: '#7a5a24',
 };
 
+/**
+ * A select drawn with its own chevron. The browser's arrow ignores padding and
+ * sits hard against the right border; this one is inset to match the text's
+ * left inset, and centred vertically.
+ */
+function asSelect(base: CSSProperties, chevron: string): CSSProperties {
+  const { background, ...rest } = base;
+  return {
+    ...rest,
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    backgroundColor: background as string,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='${encodeURIComponent(chevron)}' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 12px center',
+    backgroundSize: '10px 6px',
+    paddingRight: 32,
+  };
+}
+
+export const selectInput = asSelect(input, '#5f6a75');
+export const guessSelect = asSelect(guessInput, '#a87a3a');
+
 export const guessLabel: CSSProperties = { ...microLabel, color: '#c98a3a' };
 
 /** Table header cell. */

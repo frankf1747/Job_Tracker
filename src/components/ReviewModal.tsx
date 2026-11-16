@@ -4,7 +4,7 @@ import type { Draft } from '../lib/parsePosting';
 import { EMPLOYMENT_TYPES, INDUSTRIES, LEVELS, STATUSES } from '../lib/schema';
 import type { Status } from '../lib/schema';
 import { ResumeField, type NewResume } from './ResumeField';
-import { SANS, field, guessInput, guessLabel, input, microLabel } from './styles';
+import { SANS, field, guessLabel, guessSelect, input, microLabel, selectInput } from './styles';
 
 /**
  * The confirmation step between parsing a posting and saving it.
@@ -247,7 +247,7 @@ export function ReviewModal({
               <select
                 value={review.industry}
                 onChange={(e) => onPatch({ industry: e.target.value })}
-                style={manual ? input : guessInput}
+                style={manual ? selectInput : guessSelect}
               >
                 {INDUSTRIES.map((o) => (
                   <option key={o} value={o}>
@@ -263,7 +263,7 @@ export function ReviewModal({
               <select
                 value={review.level}
                 onChange={(e) => onPatch({ level: e.target.value })}
-                style={manual ? input : guessInput}
+                style={manual ? selectInput : guessSelect}
               >
                 {LEVELS.map((o) => (
                   <option key={o} value={o}>
@@ -277,7 +277,7 @@ export function ReviewModal({
               <select
                 value={review.employmentType}
                 onChange={(e) => onPatch({ employmentType: e.target.value })}
-                style={input}
+                style={selectInput}
               >
                 {EMPLOYMENT_TYPES.map((o) => (
                   <option key={o} value={o}>
@@ -356,7 +356,7 @@ export function ReviewModal({
               <select
                 value={review.status}
                 onChange={(e) => onPatch({ status: e.target.value as Status })}
-                style={input}
+                style={selectInput}
               >
                 {STATUSES.map((o) => (
                   <option key={o} value={o}>

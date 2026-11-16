@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { Resume } from '../data/resumeStore';
 import { MAX_PDF_BYTES, prettySize, resumeOptions } from '../lib/resumeOptions';
-import { SANS, input, microLabel } from './styles';
+import { SANS, input, microLabel, selectInput } from './styles';
 
 /** Sentinel option that opens the inline creator rather than selecting a resume. */
 const NEW = ' new';
@@ -85,8 +85,7 @@ export function ResumeField({
     if (tailored) {
       // Never asked for; derived so the row and the Resumes panel have something
       // to show. The filename is a fallback for the rare blank posting.
-      const base =
-        autoLabel.trim() || file.name.replace(/\.pdf$/i, '').trim() || 'Untitled resume';
+      const base = autoLabel.trim() || file.name.replace(/\.pdf$/i, '').trim() || 'Untitled resume';
       name = uniqueLabel(base, resumes);
     } else {
       name = label.trim();
@@ -117,7 +116,7 @@ export function ResumeField({
             }
             onSelect(e.target.value);
           }}
-          style={input}
+          style={selectInput}
         >
           <option value="">— No resume —</option>
           {resumeOptions(resumes, value).map((o) => (
