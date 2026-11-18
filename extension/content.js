@@ -31,6 +31,11 @@ function applyAnchor() {
   // visibility does — because a posting is only ever one of the two.
   const candidates = [
     ...document.querySelectorAll('a[href*="/safety/go/?url="]'),
+    // The newer search layout (/jobs/search-results/) renders the off-site
+    // Apply as a plain button with no href; its label still says where it goes.
+    ...document.querySelectorAll(
+      'a[aria-label*="company website" i], button[aria-label*="company website" i]',
+    ),
     ...document.querySelectorAll(
       'a[aria-label^="Easy Apply" i], button[aria-label^="Easy Apply" i]',
     ),
@@ -64,6 +69,19 @@ function applyUrl() {
   } catch {
     return null;
   }
+}
+
+/**
+ * Whether the posting applies on the employer's site rather than through Easy
+ * Apply. Either the Apply link goes through LinkedIn's redirect, or it is the
+ * newer layout's button labelled for the company website; the background
+ * finds the URL itself in that case.
+ */
+function isOffsite() {
+  const a = applyAnchor();
+  if (!a) return false;
+  if ((a.getAttribute('href') ?? '').includes('/safety/go/?url=')) return true;
+  return /company website/i.test(a.getAttribute('aria-label') ?? '');
 }
 
 /**
@@ -538,7 +556,8 @@ async function queue() {
         /not signed in/i.test(e) ? 'Sign in from the toolbar.' : e.slice(0, 90),
       );
     }
-    setState('done', job.applyUrl ? '' : 'Easy Apply — no employer link');
+    // The background may have found the employer link when the page had none.
+    setState('done', job.applyUrl || res.row?.apply_url ? '' : 'Easy Apply — no employer link');
   });
 }
 
@@ -563,7 +582,7 @@ function sync() {
 
   lastJobId = id;
   // No off-site URL means Easy Apply: offer the description instead.
-  mode = applyUrl() ? 'queue' : 'copy';
+  mode = isOffsite() ? 'queue' : 'copy';
   console.info('[job-tracker] mounted', { jobId: id, mode });
   root.getElementById('go').onclick = mode === 'copy' ? copyDescription : queue;
   setState('idle');

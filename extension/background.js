@@ -34,6 +34,9 @@ async function captureAndQueue(job) {
         location: prefer(job.location, details.location),
         description: prefer(job.description, details.description),
         postedNote: prefer(job.postedNote, details.postedNote),
+        // Read off the page when Apply is a link; from the posting's own HTML
+        // when the newer layout renders it as a bare button.
+        applyUrl: job.applyUrl || details.applyUrl || null,
       }
     : job;
 

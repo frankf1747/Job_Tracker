@@ -88,6 +88,44 @@ function placeOf(jobLocation) {
  * Never throws: enrichment is an improvement on what the page already gave us,
  * so a failure here must not cost the user the capture.
  */
+/**
+ * The employer's application page, from the posting's own HTML.
+ *
+ * LinkedIn's newer search layout renders Apply as a button with no link, so
+ * the page on screen no longer says where it goes. The posting's page still
+ * does, in its embedded data as `offsiteApplyUrl`, and failing that in a
+ * `/safety/go/?url=` redirect. The data is JSON inside HTML, so its quotes and
+ * ampersands arrive escaped one of several ways; those are undone first.
+ * Empty for Easy Apply, which has no off-site page.
+ */
+export function offsiteApplyUrl(html) {
+  const unescape = (s) =>
+    s
+      .replace(/&quot;/g, '"')
+      .replace(/&amp;/g, '&')
+      .replace(/\\u0026/g, '&')
+      .replace(/\\\//g, '/')
+      .replace(/\\"/g, '"');
+
+  const at = html.indexOf('offsiteApplyUrl');
+  if (at >= 0) {
+    const m = unescape(html.slice(at, at + 1500)).match(
+      /^offsiteApplyUrl"\s*:\s*"(https?:\/\/[^"\s]+)"/,
+    );
+    if (m) return m[1];
+  }
+  const go = unescape(html).match(/\/safety\/go\/?\?url=([^&"\s]+)/);
+  if (go) {
+    try {
+      const url = decodeURIComponent(go[1]);
+      if (/^https?:\/\//.test(url)) return url;
+    } catch {
+      // A malformed escape: no URL rather than a broken one.
+    }
+  }
+  return '';
+}
+
 export async function fetchJobDetails(jobId) {
   try {
     const res = await fetch(`https://www.linkedin.com/jobs/view/${jobId}/`, {
@@ -109,6 +147,7 @@ export async function fetchJobDetails(jobId) {
       location: placeOf(job?.jobLocation),
       description: job?.description ? htmlToText(job.description) : '',
       postedNote: job?.datePosted || '',
+      applyUrl: offsiteApplyUrl(html),
       htmlChars: html.length,
     };
   } catch (err) {
