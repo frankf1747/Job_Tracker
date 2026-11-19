@@ -74,46 +74,55 @@ function Headline({ series, unit }: { series: Momentum; unit: string }) {
   );
 }
 
+/** Height of the plot area, which the bars are scaled against. */
+const PLOT = 60;
+
+/**
+ * One bar per week or day, each with its count above it.
+ *
+ * The bars and their labels sit in separate rows. With both in one column,
+ * a bar's percentage height was taken of a box that also held its label, so
+ * every tall bar overflowed and flexbox shrank them all to the same height:
+ * a 26-application week drew as tall as a 49.
+ */
 function Bars({ series }: { series: Momentum }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-end',
-        gap: 5,
-        height: 66,
-        marginTop: 'auto',
-        paddingTop: 16,
-      }}
-    >
-      {series.bars.map((b, i) => (
-        <div
-          key={i}
-          title={`${b.tip ?? b.label}: ${b.count} application${b.count === 1 ? '' : 's'}`}
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 5,
-            height: '100%',
-            justifyContent: 'flex-end',
-            cursor: 'default',
-          }}
-        >
+    <div style={{ marginTop: 'auto', paddingTop: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: PLOT + 14 }}>
+        {series.bars.map((b, i) => (
           <div
+            key={i}
+            title={`${b.tip ?? b.label}: ${b.count} application${b.count === 1 ? '' : 's'}`}
             style={{
-              width: '100%',
-              height: b.h + '%',
-              minHeight: 3,
-              background: b.fill,
-              borderRadius: '2px 2px 0 0',
-              transition: 'height .5s cubic-bezier(.2,.7,.2,1)',
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 3,
+              cursor: 'default',
             }}
-          />
-          <span style={{ fontSize: 8.5, color: '#9aa3ad' }}>{b.label}</span>
-        </div>
-      ))}
+          >
+            <span style={{ fontSize: 9, color: '#8b939e', lineHeight: 1 }}>{b.count}</span>
+            <div
+              style={{
+                width: '100%',
+                height: Math.max(3, Math.round((b.h / 100) * PLOT)),
+                flexShrink: 0,
+                background: b.fill,
+                borderRadius: '2px 2px 0 0',
+                transition: 'height .5s cubic-bezier(.2,.7,.2,1)',
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>
+        {series.bars.map((b, i) => (
+          <span key={i} style={{ flex: 1, textAlign: 'center', fontSize: 8.5, color: '#9aa3ad' }}>
+            {b.label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
